@@ -252,9 +252,9 @@ export class EnvironmentManager {
    * Removes all terrain, buildings, and lights created by this manager
    * Validates: Requirement 8.3
    * 
-   * @param scene - The Babylon.js scene
+   * @param _scene - The Babylon.js scene (unused but kept for API consistency)
    */
-  public clear(scene: BABYLON.Scene): void {
+  public clear(_scene: BABYLON.Scene): void {
     // Dispose terrain
     if (this.terrainMesh) {
       if (this.terrainMesh.physicsImpostor) {

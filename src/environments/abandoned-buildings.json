@@ -1,0 +1,39 @@
+{
+  "terrain": {
+    "width": 100,
+    "depth": 100,
+    "subdivisions": 2
+  },
+  "buildings": [
+    {
+      "position": [15, 4, 10],
+      "dimensions": [8, 8, 12],
+      "rotation": 0.3,
+      "color": "#8B7355"
+    },
+    {
+      "position": [-20, 6, 5],
+      "dimensions": [10, 12, 10],
+      "rotation": -0.5,
+      "color": "#A0826D"
+    },
+    {
+      "position": [5, 3, -15],
+      "dimensions": [6, 6, 8],
+      "rotation": 0.8,
+      "color": "#6B5D52"
+    }
+  ],
+  "lighting": {
+    "ambient": {
+      "color": "#B8A99A",
+      "intensity": 0.5
+    },
+    "directional": {
+      "color": "#FFE4B5",
+      "intensity": 0.7,
+      "direction": [-1, -2, -1]
+    },
+    "shadows": false
+  }
+}

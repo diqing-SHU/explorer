@@ -81,7 +81,7 @@
   - **Property 12: Environment configuration determines scene content**
   - **Validates: Requirements 8.3**
 
-- [ ] 7. Build default abandoned buildings environment
+- [x] 7. Build default abandoned buildings environment
   - Create environment configuration JSON for abandoned buildings theme
   - Define terrain dimensions and appearance
   - Define 2-3 simple building structures with positions and dimensions
@@ -89,7 +89,7 @@
   - Load environment in game initialization
   - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-- [ ] 8. Implement collision resolution and movement refinement
+- [-] 8. Implement collision resolution and movement refinement
   - Verify collision response allows sliding along walls
   - Test and tune movement speed and physics parameters
   - Ensure smooth movement without getting stuck

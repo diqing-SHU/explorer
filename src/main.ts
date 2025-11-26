@@ -3,6 +3,11 @@
  */
 
 import { GameManager } from './GameManager';
+import { EnvironmentConfig } from './EnvironmentManager';
+import abandonedBuildingsConfigRaw from './environments/abandoned-buildings.json';
+
+// Type assertion for the imported JSON
+const abandonedBuildingsConfig = abandonedBuildingsConfigRaw as EnvironmentConfig;
 
 console.log('3D Exploration Game - Starting...');
 
@@ -21,49 +26,8 @@ try {
   // Initialize the game manager with the canvas
   gameManager.initialize(canvas);
 
-  // Add some temporary test objects to visualize the scene
-  const scene = gameManager.getScene();
-  const BABYLON = await import('@babylonjs/core');
-
-  // Create a ground plane
-  const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 50, height: 50 }, scene);
-  const groundMaterial = new BABYLON.StandardMaterial('groundMat', scene);
-  groundMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.5, 0.3);
-  ground.material = groundMaterial;
-  
-  // Add physics to ground for collision
-  ground.physicsImpostor = new BABYLON.PhysicsImpostor(
-    ground,
-    BABYLON.PhysicsImpostor.BoxImpostor,
-    { mass: 0, friction: 0.5, restitution: 0.2 },
-    scene
-  );
-  
-  // Make ground pickable for ground detection
-  ground.isPickable = true;
-
-  // Create some test boxes to help visualize movement
-  for (let i = 0; i < 5; i++) {
-    const box = BABYLON.MeshBuilder.CreateBox(`box${i}`, { size: 2 }, scene);
-    box.position.x = (i - 2) * 5;
-    box.position.y = 1;
-    box.position.z = 5;
-    
-    const boxMaterial = new BABYLON.StandardMaterial(`boxMat${i}`, scene);
-    boxMaterial.diffuseColor = new BABYLON.Color3(Math.random(), Math.random(), Math.random());
-    box.material = boxMaterial;
-    
-    // Add physics to boxes for collision
-    box.physicsImpostor = new BABYLON.PhysicsImpostor(
-      box,
-      BABYLON.PhysicsImpostor.BoxImpostor,
-      { mass: 0, friction: 0.5, restitution: 0.2 },
-      scene
-    );
-    
-    // Make boxes pickable for ground detection
-    box.isPickable = true;
-  }
+  // Load the abandoned buildings environment
+  gameManager.loadEnvironment(abandonedBuildingsConfig);
 
   // Start the render loop
   gameManager.start();

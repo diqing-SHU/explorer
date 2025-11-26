@@ -1,6 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
 import * as CANNON from 'cannon';
 import { PlayerController } from './PlayerController';
+import { EnvironmentManager, EnvironmentConfig } from './EnvironmentManager';
 
 /**
  * GameManager coordinates game initialization, scene management, and game loop
@@ -10,6 +11,7 @@ export class GameManager {
   private engine: BABYLON.Engine | null = null;
   private scene: BABYLON.Scene | null = null;
   private playerController: PlayerController | null = null;
+  private environmentManager: EnvironmentManager | null = null;
   private isRunning: boolean = false;
 
   /**
@@ -36,8 +38,8 @@ export class GameManager {
       // Set up physics engine
       this.setupPhysics();
 
-      // Set up basic lighting
-      this.setupLighting();
+      // Initialize environment manager
+      this.environmentManager = new EnvironmentManager();
 
       // Initialize player controller
       this.setupPlayer();
@@ -119,10 +121,42 @@ export class GameManager {
   }
 
   /**
+   * Get the environment manager
+   */
+  public getEnvironmentManager(): EnvironmentManager {
+    if (!this.environmentManager) {
+      throw new Error('EnvironmentManager not initialized');
+    }
+    return this.environmentManager;
+  }
+
+  /**
+   * Load environment from configuration
+   * Validates: Requirements 5.1, 5.2, 5.3, 5.4
+   * 
+   * @param config - Environment configuration object
+   */
+  public loadEnvironment(config: EnvironmentConfig): void {
+    if (!this.scene) {
+      throw new Error('Scene not initialized');
+    }
+    if (!this.environmentManager) {
+      throw new Error('EnvironmentManager not initialized');
+    }
+
+    this.environmentManager.loadEnvironment(this.scene, config);
+  }
+
+  /**
    * Clean up resources
    */
   public dispose(): void {
     this.stop();
+
+    if (this.environmentManager && this.scene) {
+      this.environmentManager.dispose(this.scene);
+      this.environmentManager = null;
+    }
 
     if (this.playerController) {
       this.playerController.dispose();
@@ -164,33 +198,7 @@ export class GameManager {
     console.log('Physics engine initialized with gravity:', gravityVector);
   }
 
-  /**
-   * Set up basic lighting for the scene
-   * Creates ambient light and directional light as per design
-   */
-  private setupLighting(): void {
-    if (!this.scene) {
-      throw new Error('Scene not initialized');
-    }
 
-    // Ambient light for overall illumination
-    const ambientLight = new BABYLON.HemisphericLight(
-      'ambientLight',
-      new BABYLON.Vector3(0, 1, 0),
-      this.scene
-    );
-    ambientLight.intensity = 0.6;
-
-    // Directional light for shadows and depth
-    const directionalLight = new BABYLON.DirectionalLight(
-      'directionalLight',
-      new BABYLON.Vector3(-1, -2, -1),
-      this.scene
-    );
-    directionalLight.intensity = 0.8;
-
-    console.log('Lighting configured');
-  }
 
   /**
    * Set up player controller with first-person camera
