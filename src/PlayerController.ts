@@ -53,10 +53,15 @@ export class PlayerController {
     this.camera.keysRight = [];
 
     // Attach camera controls to the canvas (for mouse look only)
-    this.camera.attachControl(scene.getEngine().getRenderingCanvas(), true);
+    const canvas = scene.getEngine().getRenderingCanvas();
+    this.camera.attachControl(canvas, true);
 
     // Set this camera as the active camera for the scene
     scene.activeCamera = this.camera;
+
+    // Set up pointer lock for proper FPS mouse control
+    // Validates: Requirements 2.1, 2.2
+    this.setupPointerLock(canvas);
 
     // Set up keyboard input tracking for movement and jumping
     // Validates: Requirements 1.1, 1.2, 1.3, 1.4, 3.2, 3.3
@@ -110,6 +115,46 @@ export class PlayerController {
     this.camera.checkCollisions = false;
 
     console.log('PlayerController initialized at position:', startPosition);
+  }
+
+  /**
+   * Setup pointer lock for FPS-style mouse control
+   * Validates: Requirements 2.1, 2.2
+   * 
+   * @param canvas - The canvas element to attach pointer lock to
+   */
+  private setupPointerLock(canvas: HTMLCanvasElement | null): void {
+    if (!canvas) {
+      return;
+    }
+
+    // Request pointer lock on canvas click
+    canvas.addEventListener('click', () => {
+      canvas.requestPointerLock = canvas.requestPointerLock || 
+                                   (canvas as any).mozRequestPointerLock || 
+                                   (canvas as any).webkitRequestPointerLock;
+      
+      if (canvas.requestPointerLock) {
+        canvas.requestPointerLock();
+      }
+    });
+
+    // Handle pointer lock change events
+    const onPointerLockChange = () => {
+      const isLocked = document.pointerLockElement === canvas ||
+                       (document as any).mozPointerLockElement === canvas ||
+                       (document as any).webkitPointerLockElement === canvas;
+      
+      if (isLocked) {
+        console.log('Pointer locked - mouse look enabled');
+      } else {
+        console.log('Pointer unlocked - press ESC or click canvas to re-enable');
+      }
+    };
+
+    document.addEventListener('pointerlockchange', onPointerLockChange);
+    document.addEventListener('mozpointerlockchange', onPointerLockChange);
+    document.addEventListener('webkitpointerlockchange', onPointerLockChange);
   }
 
   /**

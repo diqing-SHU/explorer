@@ -265,13 +265,25 @@ export class EnvironmentManager {
    * @param light - The directional light to cast shadows
    */
   private setupShadows(_scene: BABYLON.Scene, light: BABYLON.DirectionalLight): void {
-    // Create shadow generator with optimized settings
-    this.shadowGenerator = new BABYLON.ShadowGenerator(1024, light);
+    // Create shadow generator with higher resolution for better quality
+    this.shadowGenerator = new BABYLON.ShadowGenerator(2048, light);
     
     // Configure shadow quality vs performance
     this.shadowGenerator.useBlurExponentialShadowMap = true;
     this.shadowGenerator.blurKernel = 32;
-    this.shadowGenerator.darkness = 0.4; // Subtle shadows for abandoned aesthetic
+    this.shadowGenerator.darkness = 0.5; // Subtle shadows for abandoned aesthetic
+    
+    // Configure the shadow frustum to cover the entire scene
+    // This prevents shadows from being cut off
+    light.shadowMinZ = 1;
+    light.shadowMaxZ = 150;
+    
+    // Increase the orthographic projection size to cover all buildings
+    // Default is 0.1, we need much larger to cover 100x100 terrain
+    light.shadowOrthoScale = 0.01; // Smaller value = larger coverage area
+    
+    // Position the light to ensure good shadow coverage from above
+    light.position = new BABYLON.Vector3(-50, 80, -50);
     
     // Add buildings as shadow casters
     for (const building of this.buildingMeshes) {
@@ -283,7 +295,7 @@ export class EnvironmentManager {
       this.terrainMesh.receiveShadows = true;
     }
 
-    console.log('Shadows configured with 1024x1024 shadow map');
+    console.log('Shadows configured with 2048x2048 shadow map and extended frustum');
   }
 
   /**
