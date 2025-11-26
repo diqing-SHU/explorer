@@ -12,6 +12,10 @@ export class PlayerController {
   private scene: BABYLON.Scene | null = null;
   private jumpStrength: number = 5.0; // Upward impulse strength for jumping
   private groundCheckDistance: number = 1.0; // Distance to check for ground
+  private moveSpeed: number = 5.0; // Movement speed in units per second
+  private movementDamping: number = 0.9; // Damping factor for movement (0-1, lower = more damping)
+  private inputVector: BABYLON.Vector3 = BABYLON.Vector3.Zero(); // Current input direction
+  private keyStates: Map<string, boolean> = new Map(); // Track key press states
 
   /**
    * Initialize player with camera at the specified starting position
@@ -35,36 +39,38 @@ export class PlayerController {
     this.camera.minZ = 0.1; // Near plane
     this.camera.maxZ = 1000; // Far plane
 
-    // Movement speed (units per second)
-    this.camera.speed = 0.5;
+    // Disable camera's built-in movement - we'll handle it manually with physics
+    this.camera.speed = 0;
 
     // Angular sensitivity for mouse look
     this.camera.angularSensibility = 1000; // Lower = more sensitive
 
-    // Configure keyboard controls (WASD)
-    // These are the default keys for UniversalCamera:
-    // W (87) - forward
-    // S (83) - backward
-    // A (65) - left
-    // D (68) - right
-    this.camera.keysUp = [87]; // W
-    this.camera.keysDown = [83]; // S
-    this.camera.keysLeft = [65]; // A
-    this.camera.keysRight = [68]; // D
+    // Disable built-in keyboard controls - we'll handle input manually
+    this.camera.keysUp = [];
+    this.camera.keysDown = [];
+    this.camera.keysLeft = [];
+    this.camera.keysRight = [];
 
-    // Attach camera controls to the canvas
+    // Attach camera controls to the canvas (for mouse look only)
     this.camera.attachControl(scene.getEngine().getRenderingCanvas(), true);
 
     // Set this camera as the active camera for the scene
     scene.activeCamera = this.camera;
 
-    // Set up spacebar input for jumping
-    // Validates: Requirements 3.2, 3.3
+    // Set up keyboard input tracking for movement and jumping
+    // Validates: Requirements 1.1, 1.2, 1.3, 1.4, 3.2, 3.3
     scene.onKeyboardObservable.add((kbInfo) => {
+      const key = kbInfo.event.code;
+      
       if (kbInfo.type === BABYLON.KeyboardEventTypes.KEYDOWN) {
-        if (kbInfo.event.code === 'Space') {
+        this.keyStates.set(key, true);
+        
+        // Handle jump on spacebar press
+        if (key === 'Space') {
           this.jump();
         }
+      } else if (kbInfo.type === BABYLON.KeyboardEventTypes.KEYUP) {
+        this.keyStates.set(key, false);
       }
     });
 
@@ -81,16 +87,23 @@ export class PlayerController {
     this.playerMesh.isVisible = false; // Make it invisible
 
     // Create physics imposter for the player mesh
+    // Tuned parameters for smooth collision response and sliding along walls
+    // Validates: Requirements 4.3, 4.4
     this.physicsImpostor = new BABYLON.PhysicsImpostor(
       this.playerMesh,
       BABYLON.PhysicsImpostor.SphereImpostor,
       {
         mass: 1, // Player has mass for gravity to affect it
-        friction: 0.5, // Moderate friction for natural movement
+        friction: 0.0, // Zero friction for smooth movement and wall sliding
         restitution: 0.0, // No bounciness - player shouldn't bounce
       },
       scene
     );
+
+    // Lock rotation so player doesn't tip over
+    // This ensures the player stays upright during collisions
+    this.physicsImpostor.physicsBody.fixedRotation = true;
+    this.physicsImpostor.physicsBody.updateMassProperties();
 
     // Disable camera's built-in collision system since we're using physics
     this.camera.checkCollisions = false;
@@ -124,18 +137,143 @@ export class PlayerController {
 
   /**
    * Update player state (called each frame)
-   * Syncs camera position with physics mesh
+   * Handles physics-based movement with input and damping
+   * Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 4.3, 4.4
    * 
-   * @param _deltaTime - Time elapsed since last frame in seconds
+   * @param _deltaTime - Time elapsed since last frame in seconds (unused in physics-based movement)
    */
   public update(_deltaTime: number): void {
-    if (!this.camera || !this.playerMesh) {
+    if (!this.camera || !this.playerMesh || !this.physicsImpostor || !this.scene) {
       return;
     }
+
+    // Get current input state
+    this.updateInputVector();
+
+    // Apply movement based on input
+    this.applyMovement();
+
+    // Apply damping to horizontal velocity when no input
+    // Validates: Requirement 1.5 - movement cessation on input release
+    this.applyDamping();
 
     // Sync camera position with physics mesh position
     // The physics engine controls the mesh position, and we follow it with the camera
     this.camera.position = this.playerMesh.position.clone();
+  }
+
+  /**
+   * Update input vector based on keyboard state
+   * Validates: Requirements 1.1, 1.2, 1.3, 1.4
+   */
+  private updateInputVector(): void {
+    // Reset input vector
+    this.inputVector.set(0, 0, 0);
+
+    // Check WASD keys
+    // W key - forward
+    if (this.keyStates.get('KeyW')) {
+      this.inputVector.z += 1;
+    }
+    // S key - backward
+    if (this.keyStates.get('KeyS')) {
+      this.inputVector.z -= 1;
+    }
+    // A key - left
+    if (this.keyStates.get('KeyA')) {
+      this.inputVector.x -= 1;
+    }
+    // D key - right
+    if (this.keyStates.get('KeyD')) {
+      this.inputVector.x += 1;
+    }
+
+    // Normalize input vector if it has magnitude
+    if (this.inputVector.length() > 0) {
+      this.inputVector.normalize();
+    }
+  }
+
+  /**
+   * Apply movement force based on input and camera direction
+   * Validates: Requirements 1.1, 1.2, 1.3, 1.4, 4.3, 4.4
+   */
+  private applyMovement(): void {
+    if (!this.camera || !this.physicsImpostor) {
+      return;
+    }
+
+    // If no input, don't apply movement force
+    if (this.inputVector.length() === 0) {
+      return;
+    }
+
+    // Get camera's forward and right vectors (ignoring vertical component)
+    const forward = this.camera.getDirection(BABYLON.Axis.Z);
+    forward.y = 0; // Ignore vertical component for horizontal movement
+    forward.normalize();
+
+    const right = this.camera.getDirection(BABYLON.Axis.X);
+    right.y = 0; // Ignore vertical component
+    right.normalize();
+
+    // Calculate movement direction in world space
+    const moveDirection = forward.scale(this.inputVector.z).add(right.scale(this.inputVector.x));
+    
+    // Normalize to ensure consistent speed in all directions
+    if (moveDirection.length() > 0) {
+      moveDirection.normalize();
+    }
+
+    // Calculate desired velocity
+    const desiredVelocity = moveDirection.scale(this.moveSpeed);
+
+    // Get current velocity
+    const currentVelocity = this.physicsImpostor.getLinearVelocity()!;
+
+    // Calculate velocity change needed (only for horizontal components)
+    const velocityChange = new BABYLON.Vector3(
+      desiredVelocity.x - currentVelocity.x,
+      0, // Don't affect vertical velocity (preserve jumping/falling)
+      desiredVelocity.z - currentVelocity.z
+    );
+
+    // Apply force to achieve desired velocity
+    // Using a higher factor to overcome ground friction and make movement responsive
+    const force = velocityChange.scale(this.physicsImpostor.mass * 50);
+    this.physicsImpostor.applyForce(force, this.physicsImpostor.getObjectCenter());
+  }
+
+  /**
+   * Apply damping to horizontal velocity when no input
+   * This makes the player slow down naturally when keys are released
+   * Validates: Requirement 1.5
+   */
+  private applyDamping(): void {
+    if (!this.physicsImpostor) {
+      return;
+    }
+
+    // Only apply damping when there's no input
+    if (this.inputVector.length() > 0) {
+      return;
+    }
+
+    // Get current velocity
+    const velocity = this.physicsImpostor.getLinearVelocity();
+    if (!velocity) {
+      return;
+    }
+
+    // Apply damping to horizontal components only (preserve vertical for jumping/falling)
+    const dampedVelocity = new BABYLON.Vector3(
+      velocity.x * this.movementDamping,
+      velocity.y, // Don't damp vertical velocity
+      velocity.z * this.movementDamping
+    );
+
+    // Set the damped velocity
+    this.physicsImpostor.setLinearVelocity(dampedVelocity);
   }
 
   /**
@@ -210,6 +348,8 @@ export class PlayerController {
       this.camera.dispose();
       this.camera = null;
     }
+    this.keyStates.clear();
+    this.scene = null;
     console.log('PlayerController disposed');
   }
 }

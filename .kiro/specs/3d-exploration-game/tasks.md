@@ -89,7 +89,7 @@
   - Load environment in game initialization
   - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-- [-] 8. Implement collision resolution and movement refinement
+- [x] 8. Implement collision resolution and movement refinement
   - Verify collision response allows sliding along walls
   - Test and tune movement speed and physics parameters
   - Ensure smooth movement without getting stuck

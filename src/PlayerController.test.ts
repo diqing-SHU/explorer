@@ -81,27 +81,27 @@ describe('PlayerController', () => {
     expect(camera.maxZ).toBe(1000);
   });
 
-  it('should configure camera with movement speed', () => {
+  it('should disable camera built-in movement for physics-based control', () => {
     playerController = new PlayerController();
     const startPosition = new BABYLON.Vector3(0, 2, -10);
     
     playerController.initialize(scene, startPosition);
     
     const camera = playerController.getCamera();
-    expect(camera.speed).toBe(0.5);
+    expect(camera.speed).toBe(0);
   });
 
-  it('should configure WASD keyboard controls', () => {
+  it('should disable camera built-in keyboard controls for manual handling', () => {
     playerController = new PlayerController();
     const startPosition = new BABYLON.Vector3(0, 2, -10);
     
     playerController.initialize(scene, startPosition);
     
     const camera = playerController.getCamera();
-    expect(camera.keysUp).toContain(87); // W key
-    expect(camera.keysDown).toContain(83); // S key
-    expect(camera.keysLeft).toContain(65); // A key
-    expect(camera.keysRight).toContain(68); // D key
+    expect(camera.keysUp).toEqual([]);
+    expect(camera.keysDown).toEqual([]);
+    expect(camera.keysLeft).toEqual([]);
+    expect(camera.keysRight).toEqual([]);
   });
 
   it('should set camera as active camera in scene', () => {
@@ -173,7 +173,7 @@ describe('PlayerController', () => {
     expect(physicsImpostor.type).toBe(BABYLON.PhysicsImpostor.SphereImpostor);
   });
 
-  it('should configure physics imposter with correct properties', () => {
+  it('should configure physics imposter with correct properties for smooth collision', () => {
     playerController = new PlayerController();
     const startPosition = new BABYLON.Vector3(0, 2, -10);
     
@@ -181,7 +181,7 @@ describe('PlayerController', () => {
     
     const physicsImpostor = playerController.getPhysicsImpostor();
     expect(physicsImpostor.mass).toBe(1);
-    expect(physicsImpostor.friction).toBe(0.5);
+    expect(physicsImpostor.friction).toBe(0.0); // Zero friction for smooth movement
     expect(physicsImpostor.restitution).toBe(0.0);
   });
 
