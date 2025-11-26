@@ -17,9 +17,12 @@ export class GameManager {
   /**
    * Initialize the game with the provided canvas element
    * Creates Babylon.js engine and scene with basic lighting
+   * Validates: Requirements 7.1, 7.2, 7.3, 7.4
    */
   public initialize(canvas: HTMLCanvasElement): void {
     try {
+      // Show loading indicator
+      this.showLoading();
 
       // Check for WebGL support
       if (!this.isWebGLSupported()) {
@@ -179,23 +182,27 @@ export class GameManager {
   /**
    * Set up physics engine with Cannon.js
    * Configures gravity and enables physics simulation
-   * Validates: Requirements 3.1, 4.1, 4.2
+   * Validates: Requirements 3.1, 4.1, 4.2, 7.3
    */
   private setupPhysics(): void {
     if (!this.scene) {
       throw new Error('Scene not initialized');
     }
 
-    // Create gravity vector (standard Earth gravity: 9.81 m/s²)
-    const gravityVector = new BABYLON.Vector3(0, -9.81, 0);
+    try {
+      // Create gravity vector (standard Earth gravity: 9.81 m/s²)
+      const gravityVector = new BABYLON.Vector3(0, -9.81, 0);
 
-    // Initialize physics plugin with Cannon.js
-    const physicsPlugin = new BABYLON.CannonJSPlugin(true, 10, CANNON);
+      // Initialize physics plugin with Cannon.js
+      const physicsPlugin = new BABYLON.CannonJSPlugin(true, 10, CANNON);
 
-    // Enable physics on the scene
-    this.scene.enablePhysics(gravityVector, physicsPlugin);
+      // Enable physics on the scene
+      this.scene.enablePhysics(gravityVector, physicsPlugin);
 
-    console.log('Physics engine initialized with gravity:', gravityVector);
+      console.log('Physics engine initialized with gravity:', gravityVector);
+    } catch (error) {
+      throw new Error('Failed to initialize physics engine. Please ensure your browser supports WebGL and physics simulation.');
+    }
   }
 
 
@@ -253,8 +260,30 @@ export class GameManager {
   }
 
   /**
+   * Show loading indicator
+   * Validates: Requirement 7.1
+   */
+  private showLoading(): void {
+    const loadingElement = document.getElementById('loading');
+    if (loadingElement) {
+      loadingElement.style.display = 'block';
+    }
+  }
+
+  /**
+   * Hide loading indicator
+   * Validates: Requirement 7.2
+   */
+  public hideLoading(): void {
+    const loadingElement = document.getElementById('loading');
+    if (loadingElement) {
+      loadingElement.style.display = 'none';
+    }
+  }
+
+  /**
    * Handle errors by displaying error message to user
-   * Validates: Requirement 7.3
+   * Validates: Requirement 7.3, 7.4
    */
   private handleError(error: Error): void {
     console.error('GameManager error:', error);
@@ -269,9 +298,6 @@ export class GameManager {
     }
 
     // Hide loading indicator
-    const loadingElement = document.getElementById('loading');
-    if (loadingElement) {
-      loadingElement.style.display = 'none';
-    }
+    this.hideLoading();
   }
 }

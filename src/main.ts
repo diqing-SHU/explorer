@@ -33,16 +33,15 @@ try {
   gameManager.start();
 
   // Hide loading indicator once game is ready
-  const loadingElement = document.getElementById('loading');
-  if (loadingElement) {
-    loadingElement.style.display = 'none';
-  }
+  // Validates: Requirement 7.2
+  gameManager.hideLoading();
 
   console.log('Game initialized and running');
   console.log('Controls: WASD to move, Mouse to look around');
   console.log('Click on the canvas to enable mouse look');
 } catch (error) {
   console.error('Failed to initialize game:', error);
+  // Error display is handled by GameManager.handleError
 }
 
 // Make gameManager available globally for debugging
