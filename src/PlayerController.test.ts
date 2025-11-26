@@ -124,12 +124,13 @@ describe('PlayerController', () => {
     expect(camera.angularSensibility).toBe(1000);
   });
 
-  it('should return false for isGrounded before physics implementation', () => {
+  it('should check if player is grounded using raycast', () => {
     playerController = new PlayerController();
     const startPosition = new BABYLON.Vector3(0, 2, -10);
     
     playerController.initialize(scene, startPosition);
     
+    // Without any ground mesh, player should not be grounded
     expect(playerController.isGrounded()).toBe(false);
   });
 
@@ -182,5 +183,83 @@ describe('PlayerController', () => {
     expect(physicsImpostor.mass).toBe(1);
     expect(physicsImpostor.friction).toBe(0.5);
     expect(physicsImpostor.restitution).toBe(0.0);
+  });
+
+  it('should detect ground when player is near a surface', () => {
+    playerController = new PlayerController();
+    const startPosition = new BABYLON.Vector3(0, 1, 0);
+    
+    playerController.initialize(scene, startPosition);
+    
+    // Create a ground mesh below the player
+    const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 10, height: 10 }, scene);
+    ground.position.y = 0;
+    ground.isPickable = true;
+    
+    // Player should be grounded (within 1 unit of ground)
+    expect(playerController.isGrounded()).toBe(true);
+    
+    ground.dispose();
+  });
+
+  it('should not detect ground when player is too far from surface', () => {
+    playerController = new PlayerController();
+    const startPosition = new BABYLON.Vector3(0, 5, 0);
+    
+    playerController.initialize(scene, startPosition);
+    
+    // Create a ground mesh far below the player
+    const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 10, height: 10 }, scene);
+    ground.position.y = 0;
+    ground.isPickable = true;
+    
+    // Player should not be grounded (more than 1 unit from ground)
+    expect(playerController.isGrounded()).toBe(false);
+    
+    ground.dispose();
+  });
+
+  it('should apply upward impulse when jumping while grounded', () => {
+    playerController = new PlayerController();
+    const startPosition = new BABYLON.Vector3(0, 1, 0);
+    
+    playerController.initialize(scene, startPosition);
+    
+    // Create a ground mesh below the player
+    const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 10, height: 10 }, scene);
+    ground.position.y = 0;
+    ground.isPickable = true;
+    
+    const physicsImpostor = playerController.getPhysicsImpostor();
+    const initialVelocity = physicsImpostor.getLinearVelocity()?.y || 0;
+    
+    // Jump should work when grounded
+    playerController.jump();
+    
+    // After jump, vertical velocity should be positive (upward)
+    const afterJumpVelocity = physicsImpostor.getLinearVelocity()?.y || 0;
+    expect(afterJumpVelocity).toBeGreaterThan(initialVelocity);
+    
+    ground.dispose();
+  });
+
+  it('should not jump when not grounded', () => {
+    playerController = new PlayerController();
+    const startPosition = new BABYLON.Vector3(0, 5, 0);
+    
+    playerController.initialize(scene, startPosition);
+    
+    const physicsImpostor = playerController.getPhysicsImpostor();
+    
+    // Set a downward velocity to simulate falling
+    physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, -2, 0));
+    const velocityBeforeJump = physicsImpostor.getLinearVelocity()?.y || 0;
+    
+    // Try to jump while airborne
+    playerController.jump();
+    
+    // Velocity should not change (no jump impulse applied)
+    const velocityAfterJump = physicsImpostor.getLinearVelocity()?.y || 0;
+    expect(velocityAfterJump).toBeCloseTo(velocityBeforeJump, 1);
   });
 });

@@ -51,7 +51,7 @@
   - **Property 8: Solid objects block movement**
   - **Validates: Requirements 4.1, 4.2**
 
-- [ ] 5. Implement jump mechanic
+- [x] 5. Implement jump mechanic
   - Add spacebar input detection
   - Implement ground detection for player
   - Apply upward impulse when jump requested and player is grounded
@@ -70,7 +70,7 @@
   - **Property 7: Landing stops downward velocity**
   - **Validates: Requirements 3.4**
 
-- [ ] 6. Create environment manager
+- [x] 6. Create environment manager
   - Create EnvironmentManager class
   - Implement terrain creation (ground mesh with physics imposter)
   - Implement building creation (box meshes with physics imposters)

@@ -9,6 +9,9 @@ export class PlayerController {
   private camera: BABYLON.UniversalCamera | null = null;
   private playerMesh: BABYLON.Mesh | null = null;
   private physicsImpostor: BABYLON.PhysicsImpostor | null = null;
+  private scene: BABYLON.Scene | null = null;
+  private jumpStrength: number = 5.0; // Upward impulse strength for jumping
+  private groundCheckDistance: number = 1.0; // Distance to check for ground
 
   /**
    * Initialize player with camera at the specified starting position
@@ -18,6 +21,7 @@ export class PlayerController {
    * @param startPosition - The initial position of the player camera
    */
   public initialize(scene: BABYLON.Scene, startPosition: BABYLON.Vector3): void {
+    this.scene = scene;
 
     // Create UniversalCamera for first-person controls
     // Validates: Requirements 1.1, 1.2, 1.3, 1.4, 2.1, 2.2
@@ -53,6 +57,16 @@ export class PlayerController {
 
     // Set this camera as the active camera for the scene
     scene.activeCamera = this.camera;
+
+    // Set up spacebar input for jumping
+    // Validates: Requirements 3.2, 3.3
+    scene.onKeyboardObservable.add((kbInfo) => {
+      if (kbInfo.type === BABYLON.KeyboardEventTypes.KEYDOWN) {
+        if (kbInfo.event.code === 'Space') {
+          this.jump();
+        }
+      }
+    });
 
     // Create an invisible mesh for physics collision
     // The camera will be parented to this mesh
@@ -126,22 +140,58 @@ export class PlayerController {
 
   /**
    * Handle jump input
-   * Placeholder for future physics integration
+   * Applies upward impulse when player is grounded
+   * Validates: Requirements 3.2, 3.3
    */
   public jump(): void {
-    // Will be implemented when physics engine is added
-    console.log('Jump requested (physics not yet implemented)');
+    if (!this.physicsImpostor) {
+      console.warn('Cannot jump: physics imposter not initialized');
+      return;
+    }
+
+    // Only allow jumping if player is grounded
+    // Validates: Requirement 3.3 - prevent double jumping
+    if (!this.isGrounded()) {
+      return;
+    }
+
+    // Apply upward impulse for jump
+    // Validates: Requirement 3.2 - apply upward velocity
+    const jumpImpulse = new BABYLON.Vector3(0, this.jumpStrength, 0);
+    this.physicsImpostor.applyImpulse(
+      jumpImpulse,
+      this.physicsImpostor.getObjectCenter()
+    );
+
+    console.log('Jump executed');
   }
 
   /**
-   * Check if player is grounded
-   * Placeholder for future physics integration
+   * Check if player is grounded using raycast
+   * Validates: Requirements 3.3, 3.4
    * 
-   * @returns Always false until physics is implemented
+   * @returns True if player is on the ground, false otherwise
    */
   public isGrounded(): boolean {
-    // Will be implemented when physics engine is added
-    return false;
+    if (!this.scene || !this.playerMesh) {
+      return false;
+    }
+
+    // Cast a ray downward from the player position
+    const origin = this.playerMesh.position.clone();
+    const direction = new BABYLON.Vector3(0, -1, 0);
+    const length = this.groundCheckDistance;
+
+    const ray = new BABYLON.Ray(origin, direction, length);
+
+    // Check if ray hits anything
+    const hit = this.scene.pickWithRay(ray, (mesh) => {
+      // Ignore the player mesh itself
+      return mesh !== this.playerMesh && mesh.isPickable;
+    });
+
+    // Player is grounded if ray hits something within the check distance
+    return hit !== null && hit.hit;
   }
 
   /**
