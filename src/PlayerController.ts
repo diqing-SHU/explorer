@@ -10,10 +10,10 @@ export class PlayerController {
   private playerMesh: BABYLON.Mesh | null = null;
   private physicsImpostor: BABYLON.PhysicsImpostor | null = null;
   private scene: BABYLON.Scene | null = null;
-  private jumpStrength: number = 5.0; // Upward impulse strength for jumping
+  private jumpStrength: number = 6.0; // Upward impulse strength for jumping (tuned for better feel)
   private groundCheckDistance: number = 1.0; // Distance to check for ground
-  private moveSpeed: number = 5.0; // Movement speed in units per second
-  private movementDamping: number = 0.9; // Damping factor for movement (0-1, lower = more damping)
+  private moveSpeed: number = 6.0; // Movement speed in units per second (tuned for better responsiveness)
+  private movementDamping: number = 0.85; // Damping factor for movement (tuned for smoother stopping)
   private inputVector: BABYLON.Vector3 = BABYLON.Vector3.Zero(); // Current input direction
   private keyStates: Map<string, boolean> = new Map(); // Track key press states
 
@@ -33,7 +33,7 @@ export class PlayerController {
 
     // Configure camera properties
     // FOV (Field of View) - standard FPS value
-    this.camera.fov = Math.PI / 3; // 60 degrees
+    this.camera.fov = Math.PI / 2.8; // ~64 degrees for slightly wider view
 
     // Near and far clipping planes
     this.camera.minZ = 0.1; // Near plane
@@ -42,8 +42,9 @@ export class PlayerController {
     // Disable camera's built-in movement - we'll handle it manually with physics
     this.camera.speed = 0;
 
-    // Angular sensitivity for mouse look
-    this.camera.angularSensibility = 1000; // Lower = more sensitive
+    // Angular sensitivity for mouse look (tuned for better feel)
+    // Validates: Requirements 6.1, 6.2
+    this.camera.angularSensibility = 1500; // Tuned for comfortable mouse sensitivity
 
     // Disable built-in keyboard controls - we'll handle input manually
     this.camera.keysUp = [];

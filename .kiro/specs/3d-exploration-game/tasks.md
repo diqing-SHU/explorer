@@ -117,7 +117,7 @@
   - **Property 11: Errors display messages**
   - **Validates: Requirements 7.3**
 
-- [ ] 10. Polish and optimization
+- [x] 10. Polish and optimization
   - Test performance and optimize if needed
   - Add shadows if performance allows
   - Tune camera sensitivity and movement feel

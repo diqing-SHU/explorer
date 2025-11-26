@@ -54,6 +54,7 @@ export class EnvironmentManager {
   private terrainMesh: BABYLON.Mesh | null = null;
   private buildingMeshes: BABYLON.Mesh[] = [];
   private lights: BABYLON.Light[] = [];
+  private shadowGenerator: BABYLON.ShadowGenerator | null = null;
 
   /**
    * Load environment from configuration
@@ -105,14 +106,18 @@ export class EnvironmentManager {
       scene
     );
 
-    // Create material for terrain
+    // Create material for terrain with improved visual quality
+    // Validates: Requirements 6.1, 6.2
     const material = new BABYLON.StandardMaterial('terrainMaterial', scene);
     
     if (config.texture) {
       material.diffuseTexture = new BABYLON.Texture(config.texture, scene);
     } else {
-      // Default gray color for terrain
-      material.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+      // Default gray-brown color for terrain (more natural)
+      material.diffuseColor = new BABYLON.Color3(0.55, 0.5, 0.45);
+      // Add subtle specular for depth
+      material.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+      material.specularPower = 32;
     }
 
     terrain.material = material;
@@ -168,7 +173,8 @@ export class EnvironmentManager {
     // Set rotation (Y-axis)
     building.rotation.y = config.rotation;
 
-    // Create material for building
+    // Create material for building with improved visual quality
+    // Validates: Requirements 6.1, 6.2
     const material = new BABYLON.StandardMaterial('buildingMaterial', scene);
     
     if (config.texture) {
@@ -177,9 +183,14 @@ export class EnvironmentManager {
       // Parse color string (assuming hex format like "#RRGGBB")
       const color = BABYLON.Color3.FromHexString(config.color);
       material.diffuseColor = color;
+      // Add subtle specular for more realistic appearance
+      material.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+      material.specularPower = 16;
     } else {
       // Default brownish color for abandoned buildings
       material.diffuseColor = new BABYLON.Color3(0.6, 0.5, 0.4);
+      material.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+      material.specularPower = 16;
     }
 
     building.material = material;
@@ -238,13 +249,41 @@ export class EnvironmentManager {
     this.lights.push(directionalLight);
 
     // Setup shadows if enabled
+    // Validates: Requirements 6.1, 6.2 - performance optimization
     if (config.shadows) {
-      // Shadow implementation would go here
-      // For now, we'll skip shadows for simplicity
-      console.log('Shadows requested but not yet implemented');
+      this.setupShadows(scene, directionalLight);
     }
 
     console.log('Lighting configured:', config);
+  }
+
+  /**
+   * Setup shadow generation for better visual quality
+   * Validates: Requirements 6.1, 6.2
+   * 
+   * @param _scene - The Babylon.js scene (unused but kept for API consistency)
+   * @param light - The directional light to cast shadows
+   */
+  private setupShadows(_scene: BABYLON.Scene, light: BABYLON.DirectionalLight): void {
+    // Create shadow generator with optimized settings
+    this.shadowGenerator = new BABYLON.ShadowGenerator(1024, light);
+    
+    // Configure shadow quality vs performance
+    this.shadowGenerator.useBlurExponentialShadowMap = true;
+    this.shadowGenerator.blurKernel = 32;
+    this.shadowGenerator.darkness = 0.4; // Subtle shadows for abandoned aesthetic
+    
+    // Add buildings as shadow casters
+    for (const building of this.buildingMeshes) {
+      this.shadowGenerator.addShadowCaster(building);
+    }
+    
+    // Make terrain receive shadows
+    if (this.terrainMesh) {
+      this.terrainMesh.receiveShadows = true;
+    }
+
+    console.log('Shadows configured with 1024x1024 shadow map');
   }
 
   /**
@@ -255,6 +294,12 @@ export class EnvironmentManager {
    * @param _scene - The Babylon.js scene (unused but kept for API consistency)
    */
   public clear(_scene: BABYLON.Scene): void {
+    // Dispose shadow generator
+    if (this.shadowGenerator) {
+      this.shadowGenerator.dispose();
+      this.shadowGenerator = null;
+    }
+
     // Dispose terrain
     if (this.terrainMesh) {
       if (this.terrainMesh.physicsImpostor) {

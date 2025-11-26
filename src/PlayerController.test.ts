@@ -67,7 +67,7 @@ describe('PlayerController', () => {
     playerController.initialize(scene, startPosition);
     
     const camera = playerController.getCamera();
-    expect(camera.fov).toBeCloseTo(Math.PI / 3, 5); // 60 degrees
+    expect(camera.fov).toBeCloseTo(Math.PI / 2.8, 5); // ~64 degrees (tuned for polish)
   });
 
   it('should configure camera with correct near and far planes', () => {
@@ -121,7 +121,7 @@ describe('PlayerController', () => {
     playerController.initialize(scene, startPosition);
     
     const camera = playerController.getCamera();
-    expect(camera.angularSensibility).toBe(1000);
+    expect(camera.angularSensibility).toBe(1500); // Tuned for better feel
   });
 
   it('should check if player is grounded using raycast', () => {
