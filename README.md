@@ -9,15 +9,23 @@ A web-based 3D first-person exploration game built with Babylon.js and TypeScrip
 - ✅ WASD movement (directional relative to camera)
 - ✅ Mouse look with pointer lock
 - ✅ Smooth camera rotation with configurable sensitivity
+- ✅ Physics engine with gravity and collision detection
+- ✅ Jump mechanics with double-jump prevention
+- ✅ Environment with abandoned buildings
+- ✅ Collision resolution and sliding along walls
 - ✅ Basic scene rendering with lighting
 - ✅ Window resize handling
 - ✅ Error handling and loading states
 
-### Coming Soon
-- ⏳ Physics engine (gravity, collision detection)
-- ⏳ Jump mechanics
-- ⏳ Environment with abandoned buildings
-- ⏳ Collision resolution and sliding along walls
+### In Development
+- 🚧 **Procedural World Generation** - Infinite world with dynamic chunk loading
+  - Chunk-based terrain generation with seamless boundaries
+  - Procedural road networks with intersections and lane markings
+  - Varied building placement with realistic urban layouts
+  - Traffic infrastructure (signs, signals, street furniture)
+  - Parked vehicles with variety in types and colors
+  - Deterministic seed-based generation for consistency
+  - Extensible plugin architecture for new object types
 
 ## 🎯 Controls
 
@@ -25,6 +33,7 @@ A web-based 3D first-person exploration game built with Babylon.js and TypeScrip
 - **S** - Move backward
 - **A** - Strafe left
 - **D** - Strafe right
+- **Space** - Jump
 - **Mouse** - Look around (click canvas to enable)
 - **ESC** - Release mouse control
 
@@ -33,23 +42,30 @@ A web-based 3D first-person exploration game built with Babylon.js and TypeScrip
 ```
 .
 ├── .kiro/
-│   └── specs/           # Feature specifications
-│       └── 3d-exploration-game/
-│           ├── requirements.md  # EARS requirements
-│           ├── design.md        # Architecture & design
-│           └── tasks.md         # Implementation tasks
+│   └── specs/                    # Feature specifications
+│       ├── 3d-exploration-game/  # Base game spec
+│       │   ├── requirements.md   # EARS requirements
+│       │   ├── design.md         # Architecture & design
+│       │   └── tasks.md          # Implementation tasks
+│       └── procedural-world-generation/  # Procedural generation spec
+│           ├── requirements.md   # Generation requirements
+│           ├── design.md         # Generation architecture
+│           └── tasks.md          # Generation tasks
 ├── src/
-│   ├── main.ts              # Entry point
-│   ├── GameManager.ts       # Game coordination & scene management
-│   ├── GameManager.test.ts  # GameManager unit tests
-│   ├── PlayerController.ts  # First-person camera & controls
-│   └── PlayerController.test.ts  # PlayerController unit tests
-├── dist/                # Build output (generated)
-├── index.html           # Main HTML with canvas
-├── package.json         # Dependencies and scripts
-├── tsconfig.json        # TypeScript configuration
-├── vite.config.ts       # Vite build configuration
-└── vitest.config.ts     # Vitest test configuration
+│   ├── main.ts                   # Entry point
+│   ├── GameManager.ts            # Game coordination & scene management
+│   ├── GameManager.test.ts       # GameManager unit tests
+│   ├── PlayerController.ts       # First-person camera & controls
+│   ├── PlayerController.test.ts  # PlayerController unit tests
+│   ├── EnvironmentManager.ts     # Environment & building management
+│   ├── EnvironmentManager.test.ts # Environment unit tests
+│   └── environments/             # Environment configurations
+├── dist/                         # Build output (generated)
+├── index.html                    # Main HTML with canvas
+├── package.json                  # Dependencies and scripts
+├── tsconfig.json                 # TypeScript configuration
+├── vite.config.ts                # Vite build configuration
+└── vitest.config.ts              # Vitest test configuration
 ```
 
 ## Dependencies
@@ -138,10 +154,20 @@ npm run test:watch
 
 The game follows a modular architecture with clear separation of concerns:
 
+### Core Systems
 - **GameManager**: Coordinates game initialization, scene management, and render loop
-- **PlayerController**: Manages first-person camera and movement controls
-- **EnvironmentManager**: (Coming soon) Handles terrain and building generation
-- **PhysicsController**: (Coming soon) Manages physics engine and collision detection
+- **PlayerController**: Manages first-person camera, movement controls, and physics
+- **EnvironmentManager**: Handles static terrain and building generation
+
+### Procedural Generation (In Development)
+- **ChunkManager**: Manages chunk lifecycle (loading/unloading based on player position)
+- **Generator System**: Plugin-based architecture for extensible object generation
+  - **RoadGenerator**: Creates road networks with intersections and markings
+  - **BuildingGenerator**: Places varied buildings with realistic layouts
+  - **TrafficGenerator**: Adds signs, signals, and traffic infrastructure
+  - **VehicleGenerator**: Places vehicles along roads with proper alignment
+- **PlacementRuleEngine**: Enforces spatial constraints and collision avoidance
+- **Noise & Utilities**: Seeded random generation and noise functions for variation
 
 Built with:
 - **Babylon.js** for 3D rendering and scene management
