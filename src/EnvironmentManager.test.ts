@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as BABYLON from '@babylonjs/core';
+import * as fc from 'fast-check';
 import { EnvironmentManager, EnvironmentConfig } from './EnvironmentManager';
 
 describe('EnvironmentManager', () => {
@@ -250,6 +251,205 @@ describe('EnvironmentManager', () => {
       environmentManager.clear(scene);
       expect(environmentManager.getTerrain()).toBeNull();
       expect(environmentManager.getBuildings().length).toBe(0);
+    });
+  });
+
+  /**
+   * Feature: 3d-exploration-game, Property 12: Environment configuration determines scene content
+   * Validates: Requirements 8.3
+   * 
+   * For any two different environment configurations, loading them should produce 
+   * scenes with different terrain dimensions, building counts, or building positions, 
+   * demonstrating that the configuration correctly controls scene content.
+   */
+  describe('Property-Based Tests', () => {
+    it('should produce different scene content for different configurations', () => {
+      fc.assert(
+        fc.property(
+          // Generate first environment configuration
+          fc.record({
+            terrain: fc.record({
+              width: fc.double({ min: 10, max: 200, noNaN: true }),
+              depth: fc.double({ min: 10, max: 200, noNaN: true }),
+            }),
+            buildings: fc.array(
+              fc.record({
+                position: fc.tuple(
+                  fc.double({ min: -50, max: 50, noNaN: true }),
+                  fc.double({ min: 1, max: 20, noNaN: true }),
+                  fc.double({ min: -50, max: 50, noNaN: true })
+                ),
+                dimensions: fc.tuple(
+                  fc.double({ min: 2, max: 20, noNaN: true }),
+                  fc.double({ min: 3, max: 30, noNaN: true }),
+                  fc.double({ min: 2, max: 20, noNaN: true })
+                ),
+                rotation: fc.double({ min: 0, max: Math.PI * 2, noNaN: true }),
+              }),
+              { minLength: 0, maxLength: 5 }
+            ),
+            lighting: fc.record({
+              ambient: fc.record({
+                color: fc.constantFrom('#FFFFFF', '#FFEECC', '#CCDDFF'),
+                intensity: fc.double({ min: 0.1, max: 1.0, noNaN: true }),
+              }),
+              directional: fc.record({
+                color: fc.constantFrom('#FFFFFF', '#FFFFCC', '#FFDDAA'),
+                intensity: fc.double({ min: 0.1, max: 1.0, noNaN: true }),
+                direction: fc.tuple(
+                  fc.double({ min: -1, max: 1, noNaN: true }),
+                  fc.double({ min: -2, max: -0.5, noNaN: true }),
+                  fc.double({ min: -1, max: 1, noNaN: true })
+                ),
+              }),
+            }),
+          }),
+          // Generate second environment configuration (different from first)
+          fc.record({
+            terrain: fc.record({
+              width: fc.double({ min: 10, max: 200, noNaN: true }),
+              depth: fc.double({ min: 10, max: 200, noNaN: true }),
+            }),
+            buildings: fc.array(
+              fc.record({
+                position: fc.tuple(
+                  fc.double({ min: -50, max: 50, noNaN: true }),
+                  fc.double({ min: 1, max: 20, noNaN: true }),
+                  fc.double({ min: -50, max: 50, noNaN: true })
+                ),
+                dimensions: fc.tuple(
+                  fc.double({ min: 2, max: 20, noNaN: true }),
+                  fc.double({ min: 3, max: 30, noNaN: true }),
+                  fc.double({ min: 2, max: 20, noNaN: true })
+                ),
+                rotation: fc.double({ min: 0, max: Math.PI * 2, noNaN: true }),
+              }),
+              { minLength: 0, maxLength: 5 }
+            ),
+            lighting: fc.record({
+              ambient: fc.record({
+                color: fc.constantFrom('#FFFFFF', '#FFEECC', '#CCDDFF'),
+                intensity: fc.double({ min: 0.1, max: 1.0, noNaN: true }),
+              }),
+              directional: fc.record({
+                color: fc.constantFrom('#FFFFFF', '#FFFFCC', '#FFDDAA'),
+                intensity: fc.double({ min: 0.1, max: 1.0, noNaN: true }),
+                direction: fc.tuple(
+                  fc.double({ min: -1, max: 1, noNaN: true }),
+                  fc.double({ min: -2, max: -0.5, noNaN: true }),
+                  fc.double({ min: -1, max: 1, noNaN: true })
+                ),
+              }),
+            }),
+          }),
+          (config1, config2) => {
+            // Create a fresh environment manager for this test
+            const envManager = new EnvironmentManager();
+            
+            // Load first configuration
+            envManager.loadEnvironment(scene, config1);
+            
+            // Capture scene state after first config
+            const terrain1 = envManager.getTerrain();
+            const buildings1 = envManager.getBuildings();
+            const buildingCount1 = buildings1.length;
+            
+            // Store building positions from first config
+            const buildingPositions1 = buildings1.map(b => ({
+              x: b.position.x,
+              y: b.position.y,
+              z: b.position.z,
+            }));
+            
+            // Load second configuration
+            envManager.loadEnvironment(scene, config2);
+            
+            // Capture scene state after second config
+            const terrain2 = envManager.getTerrain();
+            const buildings2 = envManager.getBuildings();
+            const buildingCount2 = buildings2.length;
+            
+            // Store building positions from second config
+            const buildingPositions2 = buildings2.map(b => ({
+              x: b.position.x,
+              y: b.position.y,
+              z: b.position.z,
+            }));
+            
+            // Cleanup
+            envManager.dispose(scene);
+            
+            // Property verification:
+            // If configurations differ, the resulting scene content should differ
+            
+            // Check if configurations are actually different
+            const terrainDifferent = 
+              config1.terrain.width !== config2.terrain.width ||
+              config1.terrain.depth !== config2.terrain.depth;
+            
+            const buildingCountDifferent = 
+              config1.buildings.length !== config2.buildings.length;
+            
+            const buildingPositionsDifferent = (() => {
+              if (config1.buildings.length !== config2.buildings.length) {
+                return true;
+              }
+              for (let i = 0; i < config1.buildings.length; i++) {
+                const pos1 = config1.buildings[i].position;
+                const pos2 = config2.buildings[i].position;
+                if (pos1[0] !== pos2[0] || pos1[1] !== pos2[1] || pos1[2] !== pos2[2]) {
+                  return true;
+                }
+              }
+              return false;
+            })();
+            
+            const configsDifferent = terrainDifferent || buildingCountDifferent || buildingPositionsDifferent;
+            
+            // If configs are different, verify scene content reflects those differences
+            if (configsDifferent) {
+              // Verify terrain exists for both
+              const bothTerrainsExist = terrain1 !== null && terrain2 !== null;
+              
+              // Verify building counts match configurations
+              const buildingCountsMatch = 
+                buildingCount1 === config1.buildings.length &&
+                buildingCount2 === config2.buildings.length;
+              
+              // If building counts differ, verify scene reflects that
+              let buildingCountReflected = true;
+              if (buildingCountDifferent) {
+                buildingCountReflected = buildingCount1 !== buildingCount2;
+              }
+              
+              // If building positions differ, verify scene reflects that
+              let buildingPositionsReflected = true;
+              if (buildingPositionsDifferent && buildingCount1 === buildingCount2 && buildingCount1 > 0) {
+                // Check if at least one building position differs
+                let foundDifference = false;
+                for (let i = 0; i < Math.min(buildingPositions1.length, buildingPositions2.length); i++) {
+                  const pos1 = buildingPositions1[i];
+                  const pos2 = buildingPositions2[i];
+                  if (Math.abs(pos1.x - pos2.x) > 0.01 || 
+                      Math.abs(pos1.y - pos2.y) > 0.01 || 
+                      Math.abs(pos1.z - pos2.z) > 0.01) {
+                    foundDifference = true;
+                    break;
+                  }
+                }
+                buildingPositionsReflected = foundDifference;
+              }
+              
+              return bothTerrainsExist && buildingCountsMatch && 
+                     buildingCountReflected && buildingPositionsReflected;
+            }
+            
+            // If configs are identical, that's fine - property still holds
+            return true;
+          }
+        ),
+        { numRuns: 100 }
+      );
     });
   });
 });

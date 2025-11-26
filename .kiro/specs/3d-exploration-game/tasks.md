@@ -15,7 +15,7 @@
   - Implement window resize handling
   - _Requirements: 5.3, 6.4, 7.1, 7.2_
 
-- [ ]* 2.1 Write property test for viewport resize
+- [x] 2.1 Write property test for viewport resize
   - **Property 10: Viewport adapts to window resize**
   - **Validates: Requirements 6.4**
 
@@ -28,11 +28,11 @@
   - Configure keyboard controls (WASD)
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3_
 
-- [ ]* 3.1 Write property test for directional movement
+- [x] 3.1 Write property test for directional movement
   - **Property 1: Directional movement correctness**
   - **Validates: Requirements 1.1, 1.2, 1.3, 1.4**
 
-- [ ]* 3.2 Write property test for camera rotation
+- [x] 3.2 Write property test for camera rotation
   - **Property 3: Mouse input rotates camera**
   - **Validates: Requirements 2.1, 2.2**
 
@@ -58,15 +58,15 @@
   - Prevent double jumping with cooldown or ground check
   - _Requirements: 3.2, 3.3, 3.4_
 
-- [ ]* 5.1 Write property test for jump initiation
+- [x] 5.1 Write property test for jump initiation
   - **Property 5: Jump initiates upward velocity**
   - **Validates: Requirements 3.2**
 
-- [ ]* 5.2 Write property test for double jump prevention
+- [x] 5.2 Write property test for double jump prevention
   - **Property 6: Double jump prevention**
   - **Validates: Requirements 3.3**
 
-- [ ]* 5.3 Write property test for landing
+- [x] 5.3 Write property test for landing
   - **Property 7: Landing stops downward velocity**
   - **Validates: Requirements 3.4**
 
@@ -77,7 +77,7 @@
   - Create method to load environment from configuration
   - _Requirements: 5.1, 5.2, 8.1, 8.2, 8.3_
 
-- [ ]* 6.1 Write property test for environment configuration
+- [x] 6.1 Write property test for environment configuration
   - **Property 12: Environment configuration determines scene content**
   - **Validates: Requirements 8.3**
 
@@ -96,11 +96,11 @@
   - Add movement damping when no input
   - _Requirements: 1.5, 4.3, 4.4_
 
-- [ ]* 8.1 Write property test for movement cessation
+- [x] 8.1 Write property test for movement cessation
   - **Property 2: Movement cessation on input release**
   - **Validates: Requirements 1.5**
 
-- [ ]* 8.2 Write property test for collision resolution
+- [x] 8.2 Write property test for collision resolution
   - **Property 9: Collision resolution preserves parallel movement**
   - **Validates: Requirements 4.3, 4.4**
 
@@ -113,7 +113,7 @@
   - Display error messages to user when errors occur
   - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-- [ ]* 9.1 Write property test for error display
+- [x] 9.1 Write property test for error display
   - **Property 11: Errors display messages**
   - **Validates: Requirements 7.3**
 
@@ -125,5 +125,5 @@
   - Test in different browsers
   - _Requirements: 6.1, 6.2_
 
-- [ ] 11. Final checkpoint - Ensure all tests pass
+- [x] 11. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
