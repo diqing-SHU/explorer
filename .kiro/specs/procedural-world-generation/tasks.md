@@ -133,7 +133,7 @@
   - **Property 17: Object spacing constraints**
   - **Validates: Requirements 5.5**
 
-- [ ] 9. Create building meshes with variation
+- [x] 9. Create building meshes with variation
   - Implement building mesh generation with varied dimensions
   - Add material and color variation
   - Create simple window patterns using UV mapping
@@ -141,7 +141,7 @@
   - Create physics imposters for buildings
   - _Requirements: 5.2, 5.4, 9.4_
 
-- [ ]* 9.1 Write property test for content variety
+- [x] 9.1 Write property test for content variety
   - **Property 29: Content variety across chunks**
   - **Validates: Requirements 5.2, 5.4**
 

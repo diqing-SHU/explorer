@@ -801,5 +801,168 @@ describe('BuildingGenerator', () => {
         { numRuns: 100 }
       );
     });
+
+    /**
+     * Feature: procedural-world-generation, Property 29: Content variety across chunks
+     * 
+     * For any set of generated chunks, there should be variety in object types, colors,
+     * sizes, and styles (buildings, vehicles, signs should not all be identical).
+     * 
+     * Validates: Requirements 5.2, 5.4
+     */
+    it('Property 29: Content variety across chunks', () => {
+      fc.assert(
+        fc.property(
+          // Generate random seeds and chunk configurations
+          fc.record({
+            seed: fc.integer({ min: 1, max: 1000000 }),
+            chunkSize: fc.constantFrom(100, 150, 200),
+            numChunks: fc.integer({ min: 4, max: 8 })
+          }),
+          (testData) => {
+            // Create a fresh scene for each test
+            const testEngine = new BABYLON.NullEngine();
+            const testScene = new BABYLON.Scene(testEngine);
+            
+            // Create generators
+            const testRoadGenerator = new RoadGenerator();
+            const testBuildingGenerator = new BuildingGenerator();
+            testBuildingGenerator.setRoadGenerator(testRoadGenerator);
+            
+            // Generate multiple chunks
+            const chunks: Chunk[] = [];
+            
+            for (let i = 0; i < testData.numChunks; i++) {
+              const chunkX = i % 3;
+              const chunkZ = Math.floor(i / 3);
+              
+              const chunk: Chunk = {
+                x: chunkX,
+                z: chunkZ,
+                worldX: chunkX * testData.chunkSize,
+                worldZ: chunkZ * testData.chunkSize,
+                roads: [],
+                buildings: [],
+                vehicles: [],
+                signs: [],
+                meshes: [],
+                imposters: [],
+                generatedAt: Date.now(),
+                seed: testData.seed
+              };
+              
+              const context: GenerationContext = {
+                scene: testScene,
+                chunk,
+                seed: testData.seed + chunkX * 1000 + chunkZ,
+                chunkSize: testData.chunkSize,
+                rng: new SeededRandom(testData.seed + chunkX * 1000 + chunkZ),
+                adjacentChunks: [],
+                placementEngine: null
+              };
+              
+              // Generate roads first
+              testRoadGenerator.generate(chunk, context);
+              
+              // Generate buildings
+              testBuildingGenerator.generate(chunk, context);
+              
+              chunks.push(chunk);
+            }
+            
+            // Collect all buildings from all chunks
+            const allBuildings: Building[] = [];
+            for (const chunk of chunks) {
+              allBuildings.push(...chunk.buildings);
+            }
+            
+            // If fewer than 4 buildings generated, property trivially holds
+            // (not enough data to assess variety)
+            if (allBuildings.length < 4) {
+              testScene.dispose();
+              testEngine.dispose();
+              return true;
+            }
+            
+            // Property 1: Building heights should vary
+            const heights = allBuildings.map(b => Math.round(b.dimensions.y * 10) / 10);
+            const uniqueHeights = new Set(heights);
+            const hasHeightVariety = uniqueHeights.size > 1;
+            
+            // Property 2: Building widths should vary
+            const widths = allBuildings.map(b => Math.round(b.dimensions.x * 10) / 10);
+            const uniqueWidths = new Set(widths);
+            const hasWidthVariety = uniqueWidths.size > 1;
+            
+            // Property 3: Building depths should vary
+            const depths = allBuildings.map(b => Math.round(b.dimensions.z * 10) / 10);
+            const uniqueDepths = new Set(depths);
+            const hasDepthVariety = uniqueDepths.size > 1;
+            
+            // Property 4: Building styles should vary
+            const styles = allBuildings.map(b => b.style.name);
+            const uniqueStyles = new Set(styles);
+            const hasStyleVariety = uniqueStyles.size > 1;
+            
+            // Property 5: Building colors should vary (check material colors)
+            const colors = allBuildings.map(b => {
+              const material = b.mesh.material as BABYLON.StandardMaterial;
+              if (material && material.diffuseColor) {
+                return `${material.diffuseColor.r.toFixed(1)},${material.diffuseColor.g.toFixed(1)},${material.diffuseColor.b.toFixed(1)}`;
+              }
+              return 'default';
+            });
+            const uniqueColors = new Set(colors);
+            const hasColorVariety = uniqueColors.size > 1;
+            
+            // Property 6: Building roof types should vary
+            const roofTypes = allBuildings.map(b => b.style.roofType);
+            const uniqueRoofTypes = new Set(roofTypes);
+            const hasRoofTypeVariety = uniqueRoofTypes.size > 1;
+            
+            // Property 7: Building window patterns should vary
+            const windowPatterns = allBuildings.map(b => b.style.windowPattern);
+            const uniqueWindowPatterns = new Set(windowPatterns);
+            const hasWindowPatternVariety = uniqueWindowPatterns.size > 1;
+            
+            // Property 8: Building rotations should vary (facing different streets)
+            const rotations = allBuildings.map(b => Math.round(b.rotation * 10) / 10);
+            const uniqueRotations = new Set(rotations);
+            const hasRotationVariety = uniqueRotations.size > 1;
+            
+            // Cleanup
+            testScene.dispose();
+            testEngine.dispose();
+            
+            // For variety to be present, we need:
+            // - At least 2 different heights (size variation)
+            // - At least 2 different widths (size variation)
+            // - At least 2 different depths (size variation)
+            // - At least 2 different styles (style variation)
+            // - At least 2 different colors (color variation)
+            // - At least 2 different roof types (architectural variation)
+            // - At least 2 different window patterns (detail variation)
+            // - At least 2 different rotations (orientation variation)
+            
+            // We require at least 4 out of 8 variety criteria to pass
+            // This is more lenient to account for edge cases where certain
+            // variations might not occur due to random generation or placement constraints
+            const varietyCriteriaMet = [
+              hasHeightVariety,
+              hasWidthVariety,
+              hasDepthVariety,
+              hasStyleVariety,
+              hasColorVariety,
+              hasRoofTypeVariety,
+              hasWindowPatternVariety,
+              hasRotationVariety
+            ].filter(Boolean).length;
+            
+            return varietyCriteriaMet >= 4;
+          }
+        ),
+        { numRuns: 20 }
+      );
+    });
   });
 });

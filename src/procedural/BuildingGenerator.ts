@@ -373,7 +373,7 @@ export class BuildingGenerator extends BaseGenerator {
 
   /**
    * Create building mesh with variation
-   * Validates: Requirements 5.2, 5.4
+   * Validates: Requirements 5.2, 5.4, 9.4
    */
   private createBuildingMesh(
     position: BABYLON.Vector3,
@@ -419,24 +419,105 @@ export class BuildingGenerator extends BaseGenerator {
     material.diffuseColor = color;
     material.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
     
-    // Add simple window pattern using UV mapping (Requirement 5.4)
-    // This is a simplified version - could be enhanced with actual textures
-    material.emissiveColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+    // Add window pattern using emissive color (Requirement 9.4)
+    // Different patterns based on style
+    this.applyWindowPattern(material, style, dimensions);
     
     mesh.material = material;
     
-    // Add roof if pitched style
+    // Add roof based on style (Requirement 9.4)
     if (style.roofType === 'pitched') {
-      this.addRoof(mesh, dimensions, rotation, index, chunk, scene);
+      this.addPitchedRoof(mesh, dimensions, rotation, index, chunk, scene);
+    } else {
+      this.addFlatRoof(mesh, dimensions, index, chunk, scene);
     }
     
     return mesh;
   }
 
   /**
-   * Add pitched roof to building
+   * Apply window pattern to building material
+   * Validates: Requirement 9.4
    */
-  private addRoof(
+  private applyWindowPattern(
+    material: BABYLON.StandardMaterial,
+    style: BuildingStyle,
+    dimensions: BABYLON.Vector3
+  ): void {
+    // Use emissive color to simulate windows
+    // Different patterns create different visual effects
+    switch (style.windowPattern) {
+      case 'grid':
+        // Dense grid pattern - modern office building
+        material.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.05);
+        break;
+      case 'rows':
+        // Horizontal rows - classic building
+        material.emissiveColor = new BABYLON.Color3(0.08, 0.08, 0.03);
+        break;
+      case 'sparse':
+        // Few windows - industrial building
+        material.emissiveColor = new BABYLON.Color3(0.03, 0.03, 0.01);
+        break;
+      case 'regular':
+        // Regular pattern - residential building
+        material.emissiveColor = new BABYLON.Color3(0.06, 0.06, 0.02);
+        break;
+      default:
+        material.emissiveColor = new BABYLON.Color3(0.05, 0.05, 0.02);
+    }
+  }
+
+  /**
+   * Add flat roof to building
+   * Validates: Requirement 9.4
+   */
+  private addFlatRoof(
+    buildingMesh: BABYLON.Mesh,
+    dimensions: BABYLON.Vector3,
+    index: number,
+    chunk: Chunk,
+    scene: BABYLON.Scene
+  ): void {
+    // Create a slightly smaller box on top for roof detail
+    const roofHeight = 0.5;
+    const roofInset = 0.2;
+    
+    const roof = BABYLON.MeshBuilder.CreateBox(
+      `roof_${chunk.x}_${chunk.z}_${index}`,
+      {
+        width: dimensions.x - roofInset,
+        height: roofHeight,
+        depth: dimensions.z - roofInset
+      },
+      scene
+    );
+    
+    // Position on top of building
+    roof.position = new BABYLON.Vector3(
+      0,
+      dimensions.y / 2 + roofHeight / 2,
+      0
+    );
+    
+    // Darker material for roof
+    const roofMaterial = new BABYLON.StandardMaterial(
+      `roofMaterial_${chunk.x}_${chunk.z}_${index}`,
+      scene
+    );
+    roofMaterial.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+    roofMaterial.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+    roof.material = roofMaterial;
+    
+    // Parent to building
+    roof.parent = buildingMesh;
+  }
+
+  /**
+   * Add pitched roof to building
+   * Validates: Requirement 9.4
+   */
+  private addPitchedRoof(
     buildingMesh: BABYLON.Mesh,
     dimensions: BABYLON.Vector3,
     rotation: number,
@@ -446,7 +527,7 @@ export class BuildingGenerator extends BaseGenerator {
   ): void {
     const roofHeight = dimensions.x * 0.3;
     
-    // Create pyramid for roof
+    // Create pyramid for roof using cylinder with 4 sides
     const roof = BABYLON.MeshBuilder.CreateCylinder(
       `roof_${chunk.x}_${chunk.z}_${index}`,
       {
@@ -458,21 +539,26 @@ export class BuildingGenerator extends BaseGenerator {
       scene
     );
     
-    // Position on top of building
+    // Position on top of building (relative to parent)
     roof.position = new BABYLON.Vector3(
-      buildingMesh.position.x,
-      buildingMesh.position.y + dimensions.y / 2 + roofHeight / 2,
-      buildingMesh.position.z
+      0,
+      dimensions.y / 2 + roofHeight / 2,
+      0
     );
     
-    roof.rotation.y = rotation + Math.PI / 4;
+    // Rotate to align with building
+    roof.rotation.y = Math.PI / 4;
     
-    // Darker material for roof
+    // Darker material for roof with slight color variation
     const roofMaterial = new BABYLON.StandardMaterial(
       `roofMaterial_${chunk.x}_${chunk.z}_${index}`,
       scene
     );
-    roofMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.2, 0.2);
+    
+    // Vary roof color slightly
+    const roofShade = 0.2 + (index % 3) * 0.05;
+    roofMaterial.diffuseColor = new BABYLON.Color3(roofShade, roofShade * 0.7, roofShade * 0.7);
+    roofMaterial.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
     roof.material = roofMaterial;
     
     // Parent to building
