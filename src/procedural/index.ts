@@ -28,6 +28,8 @@ export type {
   PlacementRule,
   RuleViolation
 } from './Generator';
+export { RoadGenerator } from './RoadGenerator';
+export type { RoadGeneratorConfig, LaneMarking } from './RoadGenerator';
 export { 
   PlacementRuleEngine as PlacementRuleEngineImpl,
   NoRoadOverlapRule,

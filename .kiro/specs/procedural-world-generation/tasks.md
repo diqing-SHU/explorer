@@ -66,7 +66,7 @@
   - **Property 32: Collision-free object placement**
   - **Validates: Requirements 10.4**
 
-- [ ] 6. Implement RoadGenerator
+- [x] 6. Implement RoadGenerator
   - Create RoadGenerator class implementing Generator interface
   - Implement grid-based road network generation
   - Add road segment creation with width and type
@@ -75,23 +75,23 @@
   - Ensure roads align with chunk boundaries for seamless connection
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-- [ ]* 6.1 Write property test for road network presence
+- [x] 6.1 Write property test for road network presence
   - **Property 5: Road network presence**
   - **Validates: Requirements 2.1**
 
-- [ ]* 6.2 Write property test for intersection creation
+- [x] 6.2 Write property test for intersection creation
   - **Property 6: Intersection creation at crossings**
   - **Validates: Requirements 2.2**
 
-- [ ]* 6.3 Write property test for lane markings
+- [x] 6.3 Write property test for lane markings
   - **Property 7: Lane markings completeness**
   - **Validates: Requirements 2.3**
 
-- [ ]* 6.4 Write property test for chunk boundary connections
+- [x] 6.4 Write property test for chunk boundary connections
   - **Property 8: Seamless chunk boundary connections**
   - **Validates: Requirements 2.4**
 
-- [ ]* 6.5 Write property test for road width variety
+- [x] 6.5 Write property test for road width variety
   - **Property 9: Road width variety**
   - **Validates: Requirements 2.5**
 

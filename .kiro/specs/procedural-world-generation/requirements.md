@@ -42,7 +42,7 @@ This document specifies the requirements for a procedural world generation syste
 2. WHEN two roads meet, THEN the World Generator SHALL create an intersection with appropriate geometry
 3. WHEN roads are created, THEN the World Generator SHALL apply lane markings including center lines, edge lines, and crosswalks
 4. WHEN roads are generated at chunk boundaries, THEN the World Generator SHALL ensure roads connect seamlessly between adjacent chunks
-5. WHILE generating roads, THEN the World Generator SHALL vary road widths to include main streets and side streets
+5. WHILE generating roads, THEN the World Generator SHALL use varied road widths with at least two distinct width categories representing main streets and side streets
 
 ### Requirement 3
 
