@@ -5,6 +5,8 @@
 
 export { SeededRandom } from './SeededRandom';
 export { NoiseGenerator } from './NoiseGenerator';
+export { ChunkManager } from './ChunkManager';
+export type { ChunkConfig } from './ChunkManager';
 export type { ChunkCoordinates } from './SpatialUtils';
 export type {
   Chunk,

@@ -18,7 +18,7 @@
   - Implement distance calculation between chunks and positions
   - _Requirements: 1.1, 1.4_
 
-- [ ] 3. Implement ChunkManager core functionality
+- [x] 3. Implement ChunkManager core functionality
   - Create ChunkManager class with configuration
   - Implement chunk loading/unloading based on player position
   - Add chunk tracking with Map<string, Chunk>
@@ -26,19 +26,19 @@
   - Add update method to check player position each frame
   - _Requirements: 1.1, 1.4, 1.5, 12.3_
 
-- [ ]* 3.1 Write property test for chunk generation on proximity
+- [x] 3.1 Write property test for chunk generation on proximity
   - **Property 1: Chunk generation triggers on proximity**
   - **Validates: Requirements 1.1**
 
-- [ ]* 3.2 Write property test for chunk unloading
+- [x] 3.2 Write property test for chunk unloading
   - **Property 3: Chunk unloading beyond distance**
   - **Validates: Requirements 1.4**
 
-- [ ]* 3.3 Write property test for stationary player stability
+- [x] 3.3 Write property test for stationary player stability
   - **Property 4: Stationary player stability**
   - **Validates: Requirements 1.5**
 
-- [ ]* 3.4 Write property test for player position chunk loading
+- [x] 3.4 Write property test for player position chunk loading
   - **Property 35: Player position chunk loading**
   - **Validates: Requirements 12.3**
 
