@@ -28,6 +28,13 @@ export type {
   PlacementRule,
   RuleViolation
 } from './Generator';
+export { 
+  PlacementRuleEngine as PlacementRuleEngineImpl,
+  NoRoadOverlapRule,
+  NoObjectCollisionRule,
+  MinimumSpacingRule
+} from './PlacementRuleEngine';
+export type { BoundingBox } from './PlacementRuleEngine';
 export {
   worldToChunk,
   chunkToWorld,
