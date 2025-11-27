@@ -95,7 +95,7 @@
   - **Property 9: Road width variety**
   - **Validates: Requirements 2.5**
 
-- [ ] 7. Create road meshes and physics imposters
+- [x] 7. Create road meshes and physics imposters
   - Implement road mesh generation from road segments
   - Add UV mapping for road textures
   - Create lane marking meshes or decals
@@ -103,11 +103,11 @@
   - Integrate with Babylon.js scene
   - _Requirements: 2.1, 12.2, 12.4_
 
-- [ ]* 7.1 Write property test for physics imposter compatibility
+- [x] 7.1 Write property test for physics imposter compatibility
   - **Property 34: Physics imposter compatibility**
   - **Validates: Requirements 12.2**
 
-- [ ]* 7.2 Write property test for scene graph integration
+- [x] 7.2 Write property test for scene graph integration
   - **Property 36: Scene graph integration**
   - **Validates: Requirements 12.4**
 

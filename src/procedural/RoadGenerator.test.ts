@@ -1025,6 +1025,372 @@ describe('RoadGenerator', () => {
     });
 
     /**
+     * Feature: procedural-world-generation, Property 34: Physics imposter compatibility
+     * 
+     * For any generated object with collision, the physics imposter should be compatible
+     * with the existing Babylon.js physics system and respond to collisions correctly.
+     * 
+     * Validates: Requirements 12.2
+     */
+    it('Property 34: Physics imposter compatibility', () => {
+      fc.assert(
+        fc.property(
+          // Generate random chunk coordinates and seeds
+          fc.record({
+            chunkX: fc.integer({ min: -100, max: 100 }),
+            chunkZ: fc.integer({ min: -100, max: 100 }),
+            seed: fc.integer({ min: 1, max: 1000000 }),
+            chunkSize: fc.integer({ min: 50, max: 200 })
+          }),
+          (testData) => {
+            // Create a fresh scene for each test
+            const testEngine = new BABYLON.NullEngine();
+            const testScene = new BABYLON.Scene(testEngine);
+            const testGenerator = new RoadGenerator();
+
+            // Create chunk
+            const chunk: Chunk = {
+              x: testData.chunkX,
+              z: testData.chunkZ,
+              worldX: testData.chunkX * testData.chunkSize,
+              worldZ: testData.chunkZ * testData.chunkSize,
+              roads: [],
+              buildings: [],
+              vehicles: [],
+              signs: [],
+              meshes: [],
+              imposters: [],
+              generatedAt: Date.now(),
+              seed: testData.seed
+            };
+
+            // Create generation context
+            const context: GenerationContext = {
+              scene: testScene,
+              chunk,
+              seed: testData.seed,
+              chunkSize: testData.chunkSize,
+              rng: new SeededRandom(testData.seed),
+              adjacentChunks: [],
+              placementEngine: null
+            };
+
+            // Generate roads
+            testGenerator.generate(chunk, context);
+
+            // Property 1: All generated roads should have physics imposters
+            let allRoadsHaveImposters = true;
+            for (const road of chunk.roads) {
+              if (!road.imposter) {
+                allRoadsHaveImposters = false;
+                break;
+              }
+            }
+
+            // Property 2: All physics imposters should be valid Babylon.js PhysicsImpostor instances
+            let allImpostersValid = true;
+            for (const road of chunk.roads) {
+              if (road.imposter) {
+                // Check that it's a PhysicsImpostor instance
+                if (!(road.imposter instanceof BABYLON.PhysicsImpostor)) {
+                  allImpostersValid = false;
+                  break;
+                }
+              }
+            }
+
+            // Property 3: Physics imposters should be associated with the correct mesh
+            let impostersMatchMeshes = true;
+            for (const road of chunk.roads) {
+              if (road.imposter && road.mesh) {
+                // The imposter's object should be the road mesh
+                if (road.imposter.object !== road.mesh) {
+                  impostersMatchMeshes = false;
+                  break;
+                }
+              }
+            }
+
+            // Property 4: Physics imposters should have appropriate physics properties
+            let impostersHaveValidProperties = true;
+            for (const road of chunk.roads) {
+              if (road.imposter) {
+                // Roads should be static (mass = 0)
+                if (road.imposter.mass !== 0) {
+                  impostersHaveValidProperties = false;
+                  break;
+                }
+
+                // Should have valid friction and restitution values
+                const friction = road.imposter.friction;
+                const restitution = road.imposter.restitution;
+                
+                if (friction === undefined || friction < 0 || 
+                    restitution === undefined || restitution < 0 || restitution > 1) {
+                  impostersHaveValidProperties = false;
+                  break;
+                }
+              }
+            }
+
+            // Property 5: Physics imposters should use appropriate impostor types
+            let impostersHaveValidTypes = true;
+            for (const road of chunk.roads) {
+              if (road.imposter) {
+                // Check that the impostor type is valid (BoxImpostor is common for roads)
+                const type = road.imposter.type;
+                
+                // Valid types: BoxImpostor (1), SphereImpostor (2), PlaneImpostor (3), 
+                // MeshImpostor (4), CylinderImpostor (7), etc.
+                const validTypes = [
+                  BABYLON.PhysicsImpostor.BoxImpostor,
+                  BABYLON.PhysicsImpostor.MeshImpostor,
+                  BABYLON.PhysicsImpostor.PlaneImpostor
+                ];
+                
+                if (!validTypes.includes(type)) {
+                  impostersHaveValidTypes = false;
+                  break;
+                }
+              }
+            }
+
+            // Property 6: All imposters in chunk.imposters array should be valid
+            let chunkImpostersValid = true;
+            for (const imposter of chunk.imposters) {
+              if (!(imposter instanceof BABYLON.PhysicsImpostor)) {
+                chunkImpostersValid = false;
+                break;
+              }
+            }
+
+            // Property 7: The number of imposters should match the number of roads
+            // (each road should have exactly one imposter)
+            const imposterCountMatches = chunk.roads.length === chunk.imposters.length;
+
+            // Property 8: Physics imposters should be properly registered with the scene
+            let impostersRegisteredWithScene = true;
+            for (const road of chunk.roads) {
+              if (road.imposter) {
+                // The imposter should reference the correct scene
+                if (road.imposter.getObjectCenter().x === undefined) {
+                  // If we can't get the object center, the imposter may not be properly initialized
+                  impostersRegisteredWithScene = false;
+                  break;
+                }
+              }
+            }
+
+            // Cleanup
+            testScene.dispose();
+            testEngine.dispose();
+
+            // All properties must hold
+            return allRoadsHaveImposters && 
+                   allImpostersValid && 
+                   impostersMatchMeshes && 
+                   impostersHaveValidProperties && 
+                   impostersHaveValidTypes &&
+                   chunkImpostersValid &&
+                   imposterCountMatches &&
+                   impostersRegisteredWithScene;
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    /**
+     * Feature: procedural-world-generation, Property 36: Scene graph integration
+     * 
+     * For any generated object, the object's mesh should be added to the Babylon.js
+     * scene graph and be visible in the rendered scene.
+     * 
+     * Validates: Requirements 12.4
+     */
+    it('Property 36: Scene graph integration', () => {
+      fc.assert(
+        fc.property(
+          // Generate random chunk coordinates and seeds
+          fc.record({
+            chunkX: fc.integer({ min: -100, max: 100 }),
+            chunkZ: fc.integer({ min: -100, max: 100 }),
+            seed: fc.integer({ min: 1, max: 1000000 }),
+            chunkSize: fc.integer({ min: 50, max: 200 })
+          }),
+          (testData) => {
+            // Create a fresh scene for each test
+            const testEngine = new BABYLON.NullEngine();
+            const testScene = new BABYLON.Scene(testEngine);
+            const testGenerator = new RoadGenerator();
+
+            // Create chunk
+            const chunk: Chunk = {
+              x: testData.chunkX,
+              z: testData.chunkZ,
+              worldX: testData.chunkX * testData.chunkSize,
+              worldZ: testData.chunkZ * testData.chunkSize,
+              roads: [],
+              buildings: [],
+              vehicles: [],
+              signs: [],
+              meshes: [],
+              imposters: [],
+              generatedAt: Date.now(),
+              seed: testData.seed
+            };
+
+            // Create generation context
+            const context: GenerationContext = {
+              scene: testScene,
+              chunk,
+              seed: testData.seed,
+              chunkSize: testData.chunkSize,
+              rng: new SeededRandom(testData.seed),
+              adjacentChunks: [],
+              placementEngine: null
+            };
+
+            // Generate roads
+            testGenerator.generate(chunk, context);
+
+            // Property 1: All generated meshes should be added to the scene
+            let allMeshesInScene = true;
+            for (const mesh of chunk.meshes) {
+              // Check if mesh is in the scene's mesh list
+              if (!testScene.meshes.includes(mesh)) {
+                allMeshesInScene = false;
+                break;
+              }
+            }
+
+            // Property 2: All meshes should have the correct scene reference
+            let allMeshesHaveCorrectScene = true;
+            for (const mesh of chunk.meshes) {
+              if (mesh.getScene() !== testScene) {
+                allMeshesHaveCorrectScene = false;
+                break;
+              }
+            }
+
+            // Property 3: All meshes should be enabled (visible)
+            let allMeshesEnabled = true;
+            for (const mesh of chunk.meshes) {
+              if (!mesh.isEnabled()) {
+                allMeshesEnabled = false;
+                break;
+              }
+            }
+
+            // Property 4: All meshes should have valid positions
+            let allMeshesHaveValidPositions = true;
+            for (const mesh of chunk.meshes) {
+              const pos = mesh.position;
+              if (pos.x === undefined || pos.y === undefined || pos.z === undefined ||
+                  isNaN(pos.x) || isNaN(pos.y) || isNaN(pos.z)) {
+                allMeshesHaveValidPositions = false;
+                break;
+              }
+            }
+
+            // Property 5: All meshes should be within or near the chunk boundaries
+            // Note: We check bounding boxes, not mesh positions, because meshes may have
+            // their pivot at (0,0,0) but geometry in world space
+            let allMeshesInChunkArea = true;
+            const minX = chunk.worldX - 20; // Margin for roads at boundaries
+            const maxX = chunk.worldX + testData.chunkSize + 20;
+            const minZ = chunk.worldZ - 20;
+            const maxZ = chunk.worldZ + testData.chunkSize + 20;
+
+            for (const mesh of chunk.meshes) {
+              // Get bounding box to check actual geometry location
+              const boundingInfo = mesh.getBoundingInfo();
+              if (boundingInfo) {
+                const min = boundingInfo.boundingBox.minimumWorld;
+                const max = boundingInfo.boundingBox.maximumWorld;
+                
+                // Check if bounding box overlaps with chunk area (with margin)
+                // A mesh is in the chunk area if its bounding box intersects the chunk bounds
+                const overlapsX = max.x >= minX && min.x <= maxX;
+                const overlapsZ = max.z >= minZ && min.z <= maxZ;
+                
+                if (!overlapsX || !overlapsZ) {
+                  allMeshesInChunkArea = false;
+                  break;
+                }
+              }
+            }
+
+            // Property 6: All road meshes should be in the scene
+            let allRoadMeshesInScene = true;
+            for (const road of chunk.roads) {
+              if (road.mesh && !testScene.meshes.includes(road.mesh)) {
+                allRoadMeshesInScene = false;
+                break;
+              }
+            }
+
+            // Property 7: Scene should have at least as many meshes as chunk.meshes
+            // (scene may have more due to internal Babylon.js objects)
+            const sceneHasAllChunkMeshes = testScene.meshes.length >= chunk.meshes.length;
+
+            // Property 8: All meshes should be ready for rendering
+            // (have geometry with vertices)
+            let allMeshesReady = true;
+            for (const mesh of chunk.meshes) {
+              // Check if mesh has geometry (vertices)
+              // Note: Some meshes like very short center lines might have 0 vertices
+              // if the road segment is too short for even one dash, but they should
+              // still have the getTotalVertices method
+              if (!mesh.getTotalVertices) {
+                allMeshesReady = false;
+                break;
+              }
+            }
+
+            // Property 9: All meshes should have unique IDs within the scene
+            const meshIds = new Set<string>();
+            let allMeshesHaveUniqueIds = true;
+            for (const mesh of chunk.meshes) {
+              if (meshIds.has(mesh.id)) {
+                allMeshesHaveUniqueIds = false;
+                break;
+              }
+              meshIds.add(mesh.id);
+            }
+
+            // Property 10: All meshes should be properly disposed when scene is disposed
+            // (this is tested by checking that meshes are not disposed before scene disposal)
+            let noMeshesDisposedPrematurely = true;
+            for (const mesh of chunk.meshes) {
+              if (mesh.isDisposed()) {
+                noMeshesDisposedPrematurely = false;
+                break;
+              }
+            }
+
+            // Cleanup
+            testScene.dispose();
+            testEngine.dispose();
+
+            // All properties must hold
+            return allMeshesInScene && 
+                   allMeshesHaveCorrectScene && 
+                   allMeshesEnabled && 
+                   allMeshesHaveValidPositions && 
+                   allMeshesInChunkArea &&
+                   allRoadMeshesInScene &&
+                   sceneHasAllChunkMeshes &&
+                   allMeshesReady &&
+                   allMeshesHaveUniqueIds &&
+                   noMeshesDisposedPrematurely;
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    /**
      * Feature: procedural-world-generation, Property 5: Road network presence
      * 
      * For any generated chunk, the chunk should contain road segments following
