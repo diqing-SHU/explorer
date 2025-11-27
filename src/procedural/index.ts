@@ -30,6 +30,8 @@ export type {
 } from './Generator';
 export { RoadGenerator } from './RoadGenerator';
 export type { RoadGeneratorConfig, LaneMarking } from './RoadGenerator';
+export { BuildingGenerator } from './BuildingGenerator';
+export type { BuildingGeneratorConfig } from './BuildingGenerator';
 export { 
   PlacementRuleEngine as PlacementRuleEngineImpl,
   NoRoadOverlapRule,

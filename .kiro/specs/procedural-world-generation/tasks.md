@@ -111,7 +111,7 @@
   - **Property 36: Scene graph integration**
   - **Validates: Requirements 12.4**
 
-- [ ] 8. Implement BuildingGenerator
+- [x] 8. Implement BuildingGenerator
   - Create BuildingGenerator class implementing Generator interface
   - Query RoadGenerator to get road positions for avoidance
   - Implement building placement using Poisson disc sampling or grid
@@ -121,15 +121,15 @@
   - Add placement rules to avoid roads and maintain spacing
   - _Requirements: 5.1, 5.2, 5.3, 5.5, 10.1_
 
-- [ ]* 8.1 Write property test for building road avoidance
+- [x] 8.1 Write property test for building road avoidance
   - **Property 15: Building road avoidance**
   - **Validates: Requirements 5.1**
 
-- [ ]* 8.2 Write property test for building street alignment
+- [x] 8.2 Write property test for building street alignment
   - **Property 16: Building street alignment**
   - **Validates: Requirements 5.3**
 
-- [ ]* 8.3 Write property test for object spacing
+- [x] 8.3 Write property test for object spacing
   - **Property 17: Object spacing constraints**
   - **Validates: Requirements 5.5**
 
