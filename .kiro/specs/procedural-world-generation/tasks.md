@@ -42,7 +42,7 @@
   - **Property 35: Player position chunk loading**
   - **Validates: Requirements 12.3**
 
-- [ ] 4. Implement Generator interface and plugin system
+- [x] 4. Implement Generator interface and plugin system
   - Define Generator interface with generate method
   - Create GenerationContext data structure
   - Implement generator registration system in ChunkManager
@@ -50,7 +50,7 @@
   - Create base generator class with common functionality
   - _Requirements: 10.5, 11.1, 11.3_
 
-- [ ]* 4.1 Write property test for generation order
+- [x] 4.1 Write property test for generation order
   - **Property 33: Generation order consistency**
   - **Validates: Requirements 10.5**
 

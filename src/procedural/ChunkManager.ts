@@ -6,6 +6,8 @@
 import * as BABYLON from '@babylonjs/core';
 import { Chunk } from './ChunkTypes';
 import { worldToChunk, getChunkKey, parseChunkKey } from './SpatialUtils';
+import { Generator, GenerationContext, PlacementRuleEngine } from './Generator';
+import { SeededRandom } from './SeededRandom';
 
 /**
  * Configuration for ChunkManager
@@ -27,6 +29,8 @@ export class ChunkManager {
   private config: ChunkConfig | null = null;
   private loadedChunks: Map<string, Chunk> = new Map();
   private lastPlayerChunk: { x: number; z: number } | null = null;
+  private generators: Map<string, Generator> = new Map();
+  private placementEngine: PlacementRuleEngine | null = null;
 
   /**
    * Initialize ChunkManager with scene and configuration
@@ -40,8 +44,66 @@ export class ChunkManager {
     this.config = config;
     this.loadedChunks.clear();
     this.lastPlayerChunk = null;
+    this.generators.clear();
 
     console.log('ChunkManager initialized with config:', config);
+  }
+
+  /**
+   * Register a generator with the ChunkManager
+   * Validates: Requirement 11.1
+   * 
+   * @param generator - Generator to register
+   */
+  public registerGenerator(generator: Generator): void {
+    const name = generator.getName();
+    
+    if (this.generators.has(name)) {
+      console.warn(`Generator "${name}" is already registered. Overwriting.`);
+    }
+    
+    this.generators.set(name, generator);
+    console.log(`Registered generator: ${name}`);
+  }
+
+  /**
+   * Unregister a generator
+   * 
+   * @param name - Name of generator to unregister
+   */
+  public unregisterGenerator(name: string): void {
+    if (this.generators.delete(name)) {
+      console.log(`Unregistered generator: ${name}`);
+    }
+  }
+
+  /**
+   * Get a registered generator by name
+   * 
+   * @param name - Name of generator
+   * @returns Generator or undefined if not found
+   */
+  public getGenerator(name: string): Generator | undefined {
+    return this.generators.get(name);
+  }
+
+  /**
+   * Get all registered generators
+   * 
+   * @returns Array of all registered generators
+   */
+  public getGenerators(): Generator[] {
+    return Array.from(this.generators.values());
+  }
+
+  /**
+   * Set the placement rule engine
+   * 
+   * @param engine - Placement rule engine to use
+   */
+  public setPlacementEngine(engine: PlacementRuleEngine): void {
+    this.placementEngine = engine;
+    console.log('Placement engine set');
   }
 
   /**
@@ -208,9 +270,96 @@ export class ChunkManager {
     // Store chunk in loaded chunks map
     this.loadedChunks.set(key, chunk);
 
+    // Execute generators in configured order
+    // Validates: Requirement 10.5
+    this.executeGenerators(chunk);
+
     console.log(`Generated chunk at (${chunkX}, ${chunkZ}) with seed ${chunkSeed}`);
 
     return chunk;
+  }
+
+  /**
+   * Execute generators for a chunk in configured order
+   * Validates: Requirement 10.5
+   * 
+   * @param chunk - Chunk to generate content for
+   */
+  private executeGenerators(chunk: Chunk): void {
+    if (!this.scene || !this.config) {
+      return;
+    }
+
+    // Get adjacent chunks for boundary matching
+    const adjacentChunks = this.getAdjacentChunks(chunk.x, chunk.z);
+
+    // Create seeded RNG for this chunk
+    const rng = new SeededRandom(chunk.seed);
+
+    // Create generation context
+    const context: GenerationContext = {
+      scene: this.scene,
+      chunk,
+      seed: chunk.seed,
+      chunkSize: this.config.chunkSize,
+      rng,
+      adjacentChunks,
+      placementEngine: this.placementEngine
+    };
+
+    // Execute generators in configured order
+    // Validates: Requirement 10.5
+    const generationOrder = this.config.generationOrder || [];
+    
+    for (const generatorName of generationOrder) {
+      const generator = this.generators.get(generatorName);
+      
+      if (!generator) {
+        console.warn(`Generator "${generatorName}" not found, skipping`);
+        continue;
+      }
+
+      try {
+        // Execute generator
+        const generatedObjects = generator.generate(chunk, context);
+        
+        console.log(`Generator "${generatorName}" created ${generatedObjects.length} objects for chunk (${chunk.x}, ${chunk.z})`);
+        
+        // Store generated objects in chunk
+        // (Generators are responsible for adding objects to chunk arrays)
+      } catch (error) {
+        console.error(`Error executing generator "${generatorName}":`, error);
+      }
+    }
+  }
+
+  /**
+   * Get adjacent chunks for boundary matching
+   * 
+   * @param chunkX - Center chunk X coordinate
+   * @param chunkZ - Center chunk Z coordinate
+   * @returns Array of adjacent loaded chunks
+   */
+  private getAdjacentChunks(chunkX: number, chunkZ: number): Chunk[] {
+    const adjacent: Chunk[] = [];
+    
+    // Check all 8 adjacent positions
+    const offsets = [
+      [-1, -1], [0, -1], [1, -1],
+      [-1,  0],          [1,  0],
+      [-1,  1], [0,  1], [1,  1]
+    ];
+
+    for (const [dx, dz] of offsets) {
+      const key = getChunkKey(chunkX + dx, chunkZ + dz);
+      const chunk = this.loadedChunks.get(key);
+      
+      if (chunk) {
+        adjacent.push(chunk);
+      }
+    }
+
+    return adjacent;
   }
 
   /**

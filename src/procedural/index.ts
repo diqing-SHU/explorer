@@ -19,6 +19,15 @@ export type {
   TrafficSign
 } from './ChunkTypes';
 export { VehicleType, SignType } from './ChunkTypes';
+export { BaseGenerator } from './Generator';
+export type {
+  Generator,
+  GenerationContext,
+  GeneratedObject,
+  PlacementRuleEngine,
+  PlacementRule,
+  RuleViolation
+} from './Generator';
 export {
   worldToChunk,
   chunkToWorld,
