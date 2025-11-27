@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import * as fc from 'fast-check';
 import { SeededRandom } from './SeededRandom';
 
 describe('SeededRandom', () => {
@@ -93,5 +94,53 @@ describe('SeededRandom', () => {
     const values2 = Array.from({ length: 10 }, () => derived2.random());
     
     expect(values1).not.toEqual(values2);
+  });
+
+  // Feature: procedural-world-generation, Property 2: Deterministic generation consistency
+  // For any chunk coordinates and world seed, generating that chunk multiple times should produce 
+  // identical terrain, roads, buildings, and objects in the same positions with the same properties.
+  // Validates: Requirements 1.2
+  it('property: deterministic generation consistency', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 1000000 }), // seed
+        fc.nat({ max: 100 }), // number of values to generate
+        (seed, count) => {
+          // Create two RNGs with the same seed
+          const rng1 = new SeededRandom(seed);
+          const rng2 = new SeededRandom(seed);
+          
+          // Generate sequences of random values
+          const sequence1 = Array.from({ length: count }, () => rng1.random());
+          const sequence2 = Array.from({ length: count }, () => rng2.random());
+          
+          // Both sequences should be identical
+          expect(sequence1).toEqual(sequence2);
+          
+          // Also test other methods for consistency
+          const rng3 = new SeededRandom(seed);
+          const rng4 = new SeededRandom(seed);
+          
+          const ints1 = Array.from({ length: Math.min(count, 20) }, () => rng3.randomInt(0, 100));
+          const ints2 = Array.from({ length: Math.min(count, 20) }, () => rng4.randomInt(0, 100));
+          expect(ints1).toEqual(ints2);
+          
+          const rng5 = new SeededRandom(seed);
+          const rng6 = new SeededRandom(seed);
+          
+          const floats1 = Array.from({ length: Math.min(count, 20) }, () => rng5.randomFloat(0, 100));
+          const floats2 = Array.from({ length: Math.min(count, 20) }, () => rng6.randomFloat(0, 100));
+          expect(floats1).toEqual(floats2);
+          
+          const rng7 = new SeededRandom(seed);
+          const rng8 = new SeededRandom(seed);
+          
+          const bools1 = Array.from({ length: Math.min(count, 20) }, () => rng7.randomBool(0.5));
+          const bools2 = Array.from({ length: Math.min(count, 20) }, () => rng8.randomBool(0.5));
+          expect(bools1).toEqual(bools2);
+        }
+      ),
+      { numRuns: 100 }
+    );
   });
 });

@@ -7,11 +7,11 @@
   - Create utility functions for spatial calculations and coordinate conversion
   - _Requirements: 1.2, 9.1_
 
-- [ ]* 1.1 Write property test for deterministic RNG
+- [x] 1.1 Write property test for deterministic RNG
   - **Property 2: Deterministic generation consistency**
   - **Validates: Requirements 1.2**
 
-- [ ] 2. Implement chunk data structures and coordinate system
+- [x] 2. Implement chunk data structures and coordinate system
   - Define Chunk interface and data structures
   - Implement world-to-chunk coordinate conversion functions
   - Create chunk key generation for Map storage

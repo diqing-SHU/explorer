@@ -6,6 +6,17 @@
 export { SeededRandom } from './SeededRandom';
 export { NoiseGenerator } from './NoiseGenerator';
 export type { ChunkCoordinates } from './SpatialUtils';
+export type {
+  Chunk,
+  Road,
+  RoadSegment,
+  Intersection,
+  Building,
+  BuildingStyle,
+  Vehicle,
+  TrafficSign
+} from './ChunkTypes';
+export { VehicleType, SignType } from './ChunkTypes';
 export {
   worldToChunk,
   chunkToWorld,
