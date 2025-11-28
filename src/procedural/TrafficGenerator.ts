@@ -37,6 +37,9 @@ export class TrafficGenerator extends BaseGenerator {
   private trafficConfig: TrafficGeneratorConfig;
   private roadGenerator: RoadGenerator | null = null;
   private buildingGenerator: BuildingGenerator | null = null;
+  
+  // Master meshes for instancing (cached per scene)
+  private masterMeshes: Map<string, { pole: BABYLON.Mesh; face: BABYLON.Mesh }> = new Map();
 
   constructor() {
     super('TrafficGenerator');
@@ -455,7 +458,59 @@ export class TrafficGenerator extends BaseGenerator {
   }
 
   /**
-   * Create sign mesh with pole and face
+   * Get or create master meshes for a sign type (for instancing)
+   * Validates: Requirement 8.5 (instancing for repeated objects)
+   */
+  private getMasterMeshes(
+    type: SignType,
+    height: number,
+    size: number,
+    scene: BABYLON.Scene
+  ): { pole: BABYLON.Mesh; face: BABYLON.Mesh } {
+    const key = `${scene.uid}_${type}_${height}_${size}`;
+    
+    // Return cached master meshes if they exist
+    if (this.masterMeshes.has(key)) {
+      return this.masterMeshes.get(key)!;
+    }
+    
+    // Create master pole mesh
+    const masterPole = BABYLON.MeshBuilder.CreateCylinder(
+      `masterSignPole_${type}`,
+      {
+        diameter: 0.1,
+        height: height
+      },
+      scene
+    );
+    
+    masterPole.position.y = height / 2;
+    masterPole.isVisible = false; // Master mesh is not visible
+    
+    // Pole material (gray metal)
+    const poleMaterial = new BABYLON.StandardMaterial(
+      `masterPoleMaterial_${type}`,
+      scene
+    );
+    poleMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+    poleMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+    masterPole.material = poleMaterial;
+    
+    // Create master sign face based on type
+    const masterFace = this.createMasterSignFace(type, size, scene);
+    masterFace.position.y = height - size / 2;
+    masterFace.isVisible = false; // Master mesh is not visible
+    
+    // Cache the master meshes
+    const masterMeshes = { pole: masterPole, face: masterFace };
+    this.masterMeshes.set(key, masterMeshes);
+    
+    return masterMeshes;
+  }
+
+  /**
+   * Create sign mesh with pole and face using instancing
+   * Validates: Requirement 8.5 (instancing for repeated objects)
    */
   private createSignMesh(
     position: BABYLON.Vector3,
@@ -467,50 +522,32 @@ export class TrafficGenerator extends BaseGenerator {
     chunk: Chunk,
     scene: BABYLON.Scene
   ): BABYLON.Mesh {
+    // Get or create master meshes for this sign type
+    const masterMeshes = this.getMasterMeshes(type, height, size, scene);
+    
     // Create parent mesh for sign
     const signMesh = new BABYLON.Mesh(`sign_${chunk.x}_${chunk.z}_${index}`, scene);
     signMesh.position = position;
     signMesh.rotation.y = rotation;
     
-    // Create pole
-    const pole = BABYLON.MeshBuilder.CreateCylinder(
-      `signPole_${chunk.x}_${chunk.z}_${index}`,
-      {
-        diameter: 0.1,
-        height: height
-      },
-      scene
-    );
+    // Create instanced pole
+    const poleInstance = masterMeshes.pole.createInstance(`signPole_${chunk.x}_${chunk.z}_${index}`);
+    poleInstance.parent = signMesh;
     
-    pole.position.y = height / 2;
-    pole.parent = signMesh;
-    
-    // Pole material (gray metal)
-    const poleMaterial = new BABYLON.StandardMaterial(
-      `poleMaterial_${chunk.x}_${chunk.z}_${index}`,
-      scene
-    );
-    poleMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
-    poleMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
-    pole.material = poleMaterial;
-    
-    // Create sign face based on type
-    const signFace = this.createSignFace(type, size, index, chunk, scene);
-    signFace.position.y = height - size / 2;
-    signFace.parent = signMesh;
+    // Create instanced sign face
+    const faceInstance = masterMeshes.face.createInstance(`signFace_${chunk.x}_${chunk.z}_${index}`);
+    faceInstance.parent = signMesh;
     
     return signMesh;
   }
 
   /**
-   * Create sign face based on sign type
+   * Create master sign face based on sign type (for instancing)
    * Validates: Requirement 3.4 (variety in sign types)
    */
-  private createSignFace(
+  private createMasterSignFace(
     type: SignType,
     size: number,
-    index: number,
-    chunk: Chunk,
     scene: BABYLON.Scene
   ): BABYLON.Mesh {
     let signFace: BABYLON.Mesh;
@@ -520,7 +557,7 @@ export class TrafficGenerator extends BaseGenerator {
       case SignType.StopSign:
         // Octagonal stop sign (red)
         signFace = BABYLON.MeshBuilder.CreateCylinder(
-          `signFace_${chunk.x}_${chunk.z}_${index}`,
+          `masterSignFace_${type}`,
           {
             diameter: size,
             height: 0.05,
@@ -529,7 +566,7 @@ export class TrafficGenerator extends BaseGenerator {
           scene
         );
         material = new BABYLON.StandardMaterial(
-          `signMaterial_${chunk.x}_${chunk.z}_${index}`,
+          `masterSignMaterial_${type}`,
           scene
         );
         material.diffuseColor = new BABYLON.Color3(0.8, 0.1, 0.1); // Red
@@ -539,7 +576,7 @@ export class TrafficGenerator extends BaseGenerator {
       case SignType.TrafficLight:
         // Rectangular traffic light (black with colored lights)
         signFace = BABYLON.MeshBuilder.CreateBox(
-          `signFace_${chunk.x}_${chunk.z}_${index}`,
+          `masterSignFace_${type}`,
           {
             width: size * 0.5,
             height: size * 1.5,
@@ -548,7 +585,7 @@ export class TrafficGenerator extends BaseGenerator {
           scene
         );
         material = new BABYLON.StandardMaterial(
-          `signMaterial_${chunk.x}_${chunk.z}_${index}`,
+          `masterSignMaterial_${type}`,
           scene
         );
         material.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1); // Black
@@ -558,7 +595,7 @@ export class TrafficGenerator extends BaseGenerator {
       case SignType.SpeedLimit:
         // Circular speed limit sign (white with black border)
         signFace = BABYLON.MeshBuilder.CreateCylinder(
-          `signFace_${chunk.x}_${chunk.z}_${index}`,
+          `masterSignFace_${type}`,
           {
             diameter: size,
             height: 0.05,
@@ -567,7 +604,7 @@ export class TrafficGenerator extends BaseGenerator {
           scene
         );
         material = new BABYLON.StandardMaterial(
-          `signMaterial_${chunk.x}_${chunk.z}_${index}`,
+          `masterSignMaterial_${type}`,
           scene
         );
         material.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.9); // White
@@ -577,7 +614,7 @@ export class TrafficGenerator extends BaseGenerator {
       case SignType.Yield:
         // Triangular yield sign (red and white)
         signFace = BABYLON.MeshBuilder.CreateCylinder(
-          `signFace_${chunk.x}_${chunk.z}_${index}`,
+          `masterSignFace_${type}`,
           {
             diameter: size,
             height: 0.05,
@@ -587,7 +624,7 @@ export class TrafficGenerator extends BaseGenerator {
         );
         signFace.rotation.y = Math.PI / 6; // Rotate triangle
         material = new BABYLON.StandardMaterial(
-          `signMaterial_${chunk.x}_${chunk.z}_${index}`,
+          `masterSignMaterial_${type}`,
           scene
         );
         material.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.9); // White
@@ -600,7 +637,7 @@ export class TrafficGenerator extends BaseGenerator {
       default:
         // Rectangular sign (green for street names, blue for directional, red for no parking)
         signFace = BABYLON.MeshBuilder.CreateBox(
-          `signFace_${chunk.x}_${chunk.z}_${index}`,
+          `masterSignFace_${type}`,
           {
             width: size * 1.5,
             height: size * 0.5,
@@ -609,7 +646,7 @@ export class TrafficGenerator extends BaseGenerator {
           scene
         );
         material = new BABYLON.StandardMaterial(
-          `signMaterial_${chunk.x}_${chunk.z}_${index}`,
+          `masterSignMaterial_${type}`,
           scene
         );
         

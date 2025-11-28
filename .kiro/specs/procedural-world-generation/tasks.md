@@ -171,14 +171,14 @@
   - **Property 31: Sign valid location placement**
   - **Validates: Requirements 10.3**
 
-- [ ] 11. Create traffic sign meshes
+- [x] 11. Create traffic sign meshes
   - Implement sign mesh generation for different sign types
   - Use instanced meshes for repeated sign types
   - Add textures or materials for sign faces
   - Create simple pole geometry
   - _Requirements: 3.4, 8.5_
 
-- [ ]* 11.1 Write property test for instancing
+- [x] 11.1 Write property test for instancing
   - **Property 25: Instancing for repeated objects**
   - **Validates: Requirements 8.5**
 

@@ -502,6 +502,58 @@ describe('TrafficGenerator', () => {
     });
   });
 
+  it('should use instanced meshes for sign poles and faces', () => {
+    const chunk: Chunk = {
+      x: 0,
+      z: 0,
+      worldX: 0,
+      worldZ: 0,
+      roads: [],
+      buildings: [],
+      vehicles: [],
+      signs: [],
+      meshes: [],
+      imposters: [],
+      generatedAt: Date.now(),
+      seed: 12345
+    };
+
+    const context: GenerationContext = {
+      scene,
+      chunk,
+      seed: 12345,
+      chunkSize: 100,
+      rng: new SeededRandom(12345),
+      adjacentChunks: [],
+      placementEngine: new PlacementRuleEngine()
+    };
+
+    // Configure for high sign density to ensure multiple signs
+    generator.configure({ 
+      roadSignDensity: 1.0,
+      intersectionSignProbability: 1.0
+    });
+
+    // Generate roads
+    roadGenerator.generate(chunk, context);
+
+    // Generate traffic signs
+    generator.generate(chunk, context);
+
+    // Check that signs use instances (not full meshes)
+    if (chunk.signs.length > 0) {
+      const sign = chunk.signs[0];
+      const children = sign.mesh.getChildren();
+      
+      // Should have at least 2 children (pole and face)
+      expect(children.length).toBeGreaterThanOrEqual(2);
+      
+      // Check that children are instances (instances have a sourceMesh property)
+      const instances = children.filter((child: any) => child.sourceMesh !== undefined);
+      expect(instances.length).toBeGreaterThan(0);
+    }
+  });
+
   // Property-Based Tests
   describe('Property-Based Tests', () => {
     /**
@@ -1066,6 +1118,136 @@ describe('TrafficGenerator', () => {
                 }
               }
 
+              return true;
+            } finally {
+              // Cleanup
+              testScene.dispose();
+              testEngine.dispose();
+            }
+          }
+        ),
+        { numRuns: 100 } // Run 100 iterations as specified in design
+      );
+    });
+
+    /**
+     * Feature: procedural-world-generation, Property 25: Instancing for repeated objects
+     * 
+     * For any object type that appears multiple times (signs, vehicles), the renderer 
+     * should use instanced meshes to reduce draw calls.
+     * 
+     * Validates: Requirements 8.5
+     */
+    it('Property 25: Instancing for repeated objects', () => {
+      fc.assert(
+        fc.property(
+          // Generate random seeds and configurations
+          fc.record({
+            seed: fc.integer({ min: 1, max: 1000000 }),
+            chunkSize: fc.constantFrom(100, 150, 200),
+            roadSignDensity: fc.double({ min: 0.5, max: 1.5 }),
+            intersectionSignProbability: fc.double({ min: 0.7, max: 1.0 })
+          }),
+          (testData) => {
+            // Create a fresh scene for each test
+            const testEngine = new BABYLON.NullEngine();
+            const testScene = new BABYLON.Scene(testEngine);
+            
+            try {
+              // Create generators
+              const testRoadGenerator = new RoadGenerator();
+              const testTrafficGenerator = new TrafficGenerator();
+              testTrafficGenerator.setRoadGenerator(testRoadGenerator);
+              
+              // Configure for high sign density to ensure multiple signs
+              testTrafficGenerator.configure({
+                roadSignDensity: testData.roadSignDensity,
+                intersectionSignProbability: testData.intersectionSignProbability
+              });
+              
+              // Create chunk
+              const chunk: Chunk = {
+                x: 0,
+                z: 0,
+                worldX: 0,
+                worldZ: 0,
+                roads: [],
+                buildings: [],
+                vehicles: [],
+                signs: [],
+                meshes: [],
+                imposters: [],
+                generatedAt: Date.now(),
+                seed: testData.seed
+              };
+              
+              const context: GenerationContext = {
+                scene: testScene,
+                chunk,
+                seed: testData.seed,
+                chunkSize: testData.chunkSize,
+                rng: new SeededRandom(testData.seed),
+                adjacentChunks: [],
+                placementEngine: new PlacementRuleEngine()
+              };
+              
+              // Generate roads first
+              testRoadGenerator.generate(chunk, context);
+              
+              // Generate traffic signs
+              testTrafficGenerator.generate(chunk, context);
+              
+              // If fewer than 2 signs generated, property trivially holds
+              // (instancing only matters when there are multiple objects)
+              if (chunk.signs.length < 2) {
+                return true;
+              }
+              
+              // Property: Signs should use instanced meshes
+              // Check that sign children (pole and face) are instances, not full meshes
+              let totalInstances = 0;
+              let totalChildren = 0;
+              
+              for (const sign of chunk.signs) {
+                const children = sign.mesh.getChildren();
+                totalChildren += children.length;
+                
+                // Count how many children are instances (have sourceMesh property)
+                for (const child of children) {
+                  const childMesh = child as BABYLON.InstancedMesh;
+                  if (childMesh.sourceMesh !== undefined && childMesh.sourceMesh !== null) {
+                    totalInstances++;
+                  }
+                }
+              }
+              
+              // Property: At least some children should be instances
+              // (pole and face should be instanced for each sign)
+              // We expect at least 2 instances per sign (pole + face)
+              const expectedMinInstances = chunk.signs.length * 2;
+              const hasInstancing = totalInstances >= expectedMinInstances;
+              
+              // Additional check: Instances should share source meshes
+              // Collect all source meshes
+              const sourceMeshes = new Set<BABYLON.Mesh>();
+              for (const sign of chunk.signs) {
+                const children = sign.mesh.getChildren();
+                for (const child of children) {
+                  const childMesh = child as BABYLON.InstancedMesh;
+                  if (childMesh.sourceMesh) {
+                    sourceMeshes.add(childMesh.sourceMesh);
+                  }
+                }
+              }
+              
+              // Property: Source meshes should be reused (not unique per sign)
+              // We should have far fewer source meshes than total instances
+              const hasSharedSources = sourceMeshes.size < totalInstances;
+              
+              // Both properties must hold
+              expect(hasInstancing).toBe(true);
+              expect(hasSharedSources).toBe(true);
+              
               return true;
             } finally {
               // Cleanup
