@@ -145,7 +145,7 @@
   - **Property 29: Content variety across chunks**
   - **Validates: Requirements 5.2, 5.4**
 
-- [ ] 10. Implement TrafficGenerator
+- [x] 10. Implement TrafficGenerator
   - Create TrafficGenerator class implementing Generator interface
   - Query RoadGenerator for intersection and road positions
   - Implement sign placement at intersections (traffic lights, stop signs)
@@ -155,19 +155,19 @@
   - Ensure signs don't intersect buildings or other objects
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 10.3_
 
-- [ ]* 10.1 Write property test for intersection traffic control
+- [x] 10.1 Write property test for intersection traffic control
   - **Property 10: Intersection traffic control**
   - **Validates: Requirements 3.1**
 
-- [ ]* 10.2 Write property test for road signage
+- [x] 10.2 Write property test for road signage
   - **Property 11: Road signage presence**
   - **Validates: Requirements 3.2**
 
-- [ ]* 10.3 Write property test for sign orientation
+- [x] 10.3 Write property test for sign orientation
   - **Property 12: Sign orientation correctness**
   - **Validates: Requirements 3.3**
 
-- [ ]* 10.4 Write property test for sign valid location
+- [x] 10.4 Write property test for sign valid location
   - **Property 31: Sign valid location placement**
   - **Validates: Requirements 10.3**
 

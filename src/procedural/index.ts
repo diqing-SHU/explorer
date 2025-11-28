@@ -32,6 +32,8 @@ export { RoadGenerator } from './RoadGenerator';
 export type { RoadGeneratorConfig, LaneMarking } from './RoadGenerator';
 export { BuildingGenerator } from './BuildingGenerator';
 export type { BuildingGeneratorConfig } from './BuildingGenerator';
+export { TrafficGenerator } from './TrafficGenerator';
+export type { TrafficGeneratorConfig } from './TrafficGenerator';
 export { 
   PlacementRuleEngine as PlacementRuleEngineImpl,
   NoRoadOverlapRule,
