@@ -213,7 +213,7 @@
   - Optionally add simple wheel geometry
   - _Requirements: 4.2, 4.5, 8.5_
 
-- [ ] 14. Implement terrain generation with smooth boundaries
+- [x] 14. Implement terrain generation with smooth boundaries
   - Add terrain height generation using noise functions
   - Implement bilinear interpolation for smooth height transitions
   - Ensure terrain heights match at chunk boundaries
@@ -221,15 +221,15 @@
   - Add physics imposter for terrain
   - _Requirements: 6.1, 6.2, 9.3_
 
-- [ ]* 14.1 Write property test for terrain boundary continuity
+- [x] 14.1 Write property test for terrain boundary continuity
   - **Property 18: Terrain boundary continuity**
   - **Validates: Requirements 6.1**
 
-- [ ]* 14.2 Write property test for terrain smoothness
+- [x] 14.2 Write property test for terrain smoothness
   - **Property 19: Terrain smoothness**
   - **Validates: Requirements 6.2**
 
-- [ ]* 14.3 Write property test for terrain height variation
+- [x] 14.3 Write property test for terrain height variation
   - **Property 28: Terrain height variation**
   - **Validates: Requirements 9.3**
 

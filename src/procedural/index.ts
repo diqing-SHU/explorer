@@ -36,6 +36,8 @@ export { TrafficGenerator } from './TrafficGenerator';
 export type { TrafficGeneratorConfig } from './TrafficGenerator';
 export { VehicleGenerator } from './VehicleGenerator';
 export type { VehicleGeneratorConfig } from './VehicleGenerator';
+export { TerrainGenerator } from './TerrainGenerator';
+export type { TerrainConfig } from './TerrainGenerator';
 export { 
   PlacementRuleEngine as PlacementRuleEngineImpl,
   NoRoadOverlapRule,
