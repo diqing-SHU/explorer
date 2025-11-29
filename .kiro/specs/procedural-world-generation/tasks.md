@@ -182,7 +182,7 @@
   - **Property 25: Instancing for repeated objects**
   - **Validates: Requirements 8.5**
 
-- [ ] 12. Implement VehicleGenerator
+- [x] 12. Implement VehicleGenerator
   - Create VehicleGenerator class implementing Generator interface
   - Query RoadGenerator for road segments
   - Implement vehicle placement along roadsides with spacing
@@ -193,15 +193,15 @@
   - Ensure vehicles don't intersect other objects
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 10.2_
 
-- [ ]* 12.1 Write property test for vehicle roadside placement
+- [x] 12.1 Write property test for vehicle roadside placement
   - **Property 13: Vehicle roadside placement**
   - **Validates: Requirements 4.1**
 
-- [ ]* 12.2 Write property test for vehicle road alignment
+- [x] 12.2 Write property test for vehicle road alignment
   - **Property 14: Vehicle road alignment**
   - **Validates: Requirements 4.3**
 
-- [ ]* 12.3 Write property test for vehicle valid surface placement
+- [x] 12.3 Write property test for vehicle valid surface placement
   - **Property 30: Vehicle valid surface placement**
   - **Validates: Requirements 10.2**
 

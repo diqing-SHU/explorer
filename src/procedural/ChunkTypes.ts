@@ -98,6 +98,7 @@ export interface Vehicle {
   color: string;
   mesh: BABYLON.Mesh;
   imposter?: BABYLON.PhysicsImpostor;
+  metadata?: any; // Optional metadata (e.g., sourceSegment for placement validation)
 }
 
 /**
