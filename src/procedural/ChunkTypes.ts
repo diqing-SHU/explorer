@@ -25,7 +25,7 @@ export interface Chunk {
   signs: TrafficSign[];
   
   // Babylon.js objects
-  meshes: BABYLON.Mesh[];
+  meshes: BABYLON.AbstractMesh[]; // Support both Mesh and InstancedMesh
   imposters: BABYLON.PhysicsImpostor[];
   
   // Metadata
@@ -96,7 +96,7 @@ export interface Vehicle {
   rotation: number;
   type: VehicleType;
   color: string;
-  mesh: BABYLON.Mesh;
+  mesh: BABYLON.Mesh | BABYLON.InstancedMesh; // Support both regular and instanced meshes
   imposter?: BABYLON.PhysicsImpostor;
   metadata?: any; // Optional metadata (e.g., sourceSegment for placement validation)
 }

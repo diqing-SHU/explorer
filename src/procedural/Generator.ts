@@ -31,7 +31,7 @@ export interface GeneratedObject {
   position: BABYLON.Vector3;
   rotation: number;
   scale: BABYLON.Vector3;
-  mesh: BABYLON.Mesh;
+  mesh: BABYLON.AbstractMesh; // Support both Mesh and InstancedMesh
   imposter?: BABYLON.PhysicsImpostor;
   metadata: any;              // Generator-specific data
 }
