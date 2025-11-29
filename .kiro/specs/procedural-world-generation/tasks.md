@@ -233,17 +233,17 @@
   - **Property 28: Terrain height variation**
   - **Validates: Requirements 9.3**
 
-- [ ] 15. Implement boundary object handling
+- [x] 15. Implement boundary object handling
   - Add logic to prevent object duplication across boundaries
   - Ensure objects near boundaries are complete (not cut off)
   - Implement boundary checking in placement rules
   - _Requirements: 6.4_
 
-- [ ]* 15.1 Write property test for boundary object integrity
+- [x] 15.1 Write property test for boundary object integrity
   - **Property 20: Boundary object integrity**
   - **Validates: Requirements 6.4**
 
-- [ ] 16. Implement configuration system
+- [x] 16. Implement configuration system
   - Create configuration interfaces for all generators
   - Implement configuration loading and validation
   - Add configuration for chunk size, active radius, unload distance
@@ -252,7 +252,7 @@
   - Ensure configuration changes affect new chunks without code changes
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 11.4_
 
-- [ ]* 16.1 Write property test for configuration effects
+- [x] 16.1 Write property test for configuration effects
   - **Property 21: Configuration parameter effects**
   - **Validates: Requirements 7.2, 7.3, 7.4**
 

@@ -401,3 +401,170 @@ export class MinimumSpacingRule implements PlacementRule {
     return null;
   }
 }
+
+/**
+ * BoundaryIntegrity Rule
+ * Ensures objects near chunk boundaries are complete and not duplicated
+ * Validates: Requirement 6.4
+ * 
+ * This rule prevents two common boundary issues:
+ * 1. Objects being cut off at chunk boundaries (extending beyond chunk bounds)
+ * 2. Objects being duplicated in adjacent chunks (same object generated in multiple chunks)
+ * 
+ * Usage:
+ * ```typescript
+ * const engine = new PlacementRuleEngine();
+ * const boundaryRule = new BoundaryIntegrityRule(5, ['building', 'vehicle', 'sign']);
+ * engine.registerRule(boundaryRule);
+ * 
+ * // When generating chunks, pass adjacent chunks in the context
+ * const context: GenerationContext = {
+ *   scene,
+ *   chunk,
+ *   seed,
+ *   chunkSize: 100,
+ *   rng,
+ *   adjacentChunks: chunkManager.getAdjacentChunks(chunk.x, chunk.z),
+ *   placementEngine: engine
+ * };
+ * ```
+ * 
+ * The rule uses a deterministic ownership algorithm: objects are owned by the chunk
+ * containing their center point. For objects exactly on boundaries, the chunk with
+ * lower coordinates owns the object.
+ */
+export class BoundaryIntegrityRule implements PlacementRule {
+  public name = 'BoundaryIntegrity';
+  public objectTypes: string[];
+  private boundaryMargin: number;
+
+  constructor(boundaryMargin: number = 5, objectTypes: string[] = []) {
+    this.boundaryMargin = boundaryMargin;
+    this.objectTypes = objectTypes;
+  }
+
+  public check(object: GeneratedObject, context: GenerationContext): RuleViolation | null {
+    const { chunk, chunkSize, adjacentChunks } = context;
+    const pos = object.position;
+    const bbox = PlacementRuleEngine.getBoundingBox(object);
+    
+    // Calculate chunk boundaries
+    const chunkMinX = chunk.worldX;
+    const chunkMaxX = chunk.worldX + chunkSize;
+    const chunkMinZ = chunk.worldZ;
+    const chunkMaxZ = chunk.worldZ + chunkSize;
+    
+    // Check if object extends beyond chunk boundaries (would be cut off)
+    // Validates: Requirement 6.4 - objects should not be cut off
+    if (bbox.minX < chunkMinX || bbox.maxX > chunkMaxX ||
+        bbox.minZ < chunkMinZ || bbox.maxZ > chunkMaxZ) {
+      return {
+        rule: this.name,
+        message: `Object at (${pos.x}, ${pos.z}) extends beyond chunk boundary and would be cut off`,
+        severity: 'error'
+      };
+    }
+    
+    // Check if object is near a boundary and might be duplicated in adjacent chunks
+    // Validates: Requirement 6.4 - prevent duplication across boundaries
+    const nearLeftBoundary = pos.x - bbox.width / 2 < chunkMinX + this.boundaryMargin;
+    const nearRightBoundary = pos.x + bbox.width / 2 > chunkMaxX - this.boundaryMargin;
+    const nearTopBoundary = pos.z - bbox.depth / 2 < chunkMinZ + this.boundaryMargin;
+    const nearBottomBoundary = pos.z + bbox.depth / 2 > chunkMaxZ - this.boundaryMargin;
+    
+    if (nearLeftBoundary || nearRightBoundary || nearTopBoundary || nearBottomBoundary) {
+      // Check adjacent chunks for duplicate objects
+      for (const adjacentChunk of adjacentChunks) {
+        // Get all objects of the same type from adjacent chunk
+        const adjacentObjects = this.getObjectsFromChunk(adjacentChunk, object.type);
+        
+        for (const adjacentObj of adjacentObjects) {
+          // Check if this is essentially the same object (very close position)
+          const dx = Math.abs(pos.x - adjacentObj.position.x);
+          const dz = Math.abs(pos.z - adjacentObj.position.z);
+          
+          // If objects are extremely close (within 1 unit), consider it a duplicate
+          if (dx < 1 && dz < 1) {
+            // Determine which chunk should "own" this object based on coordinates
+            // Use a deterministic rule: the chunk with lower coordinates owns boundary objects
+            const shouldOwnObject = this.shouldChunkOwnBoundaryObject(
+              chunk.x, chunk.z,
+              adjacentChunk.x, adjacentChunk.z,
+              pos.x, pos.z,
+              chunkSize
+            );
+            
+            if (!shouldOwnObject) {
+              return {
+                rule: this.name,
+                message: `Object at (${pos.x}, ${pos.z}) would be duplicated in adjacent chunk (${adjacentChunk.x}, ${adjacentChunk.z})`,
+                severity: 'error'
+              };
+            }
+          }
+        }
+      }
+    }
+    
+    return null;
+  }
+  
+  /**
+   * Determine which chunk should own an object near a boundary
+   * Uses deterministic rules to prevent duplication
+   */
+  private shouldChunkOwnBoundaryObject(
+    chunkX: number,
+    chunkZ: number,
+    adjacentChunkX: number,
+    adjacentChunkZ: number,
+    objectX: number,
+    objectZ: number,
+    chunkSize: number
+  ): boolean {
+    // Calculate which chunk the object's center is in
+    const objectChunkX = Math.floor(objectX / chunkSize);
+    const objectChunkZ = Math.floor(objectZ / chunkSize);
+    
+    // If object center is in this chunk, this chunk owns it
+    if (objectChunkX === chunkX && objectChunkZ === chunkZ) {
+      return true;
+    }
+    
+    // If object center is in the adjacent chunk, adjacent chunk owns it
+    if (objectChunkX === adjacentChunkX && objectChunkZ === adjacentChunkZ) {
+      return false;
+    }
+    
+    // For objects exactly on boundaries, use a deterministic rule:
+    // The chunk with lower coordinates owns the object
+    if (chunkX < adjacentChunkX) return true;
+    if (chunkX > adjacentChunkX) return false;
+    if (chunkZ < adjacentChunkZ) return true;
+    return false;
+  }
+  
+  /**
+   * Get all objects of a specific type from a chunk
+   */
+  private getObjectsFromChunk(chunk: any, objectType: string): Array<{ position: any }> {
+    const objects: Array<{ position: any }> = [];
+    
+    switch (objectType) {
+      case 'building':
+        objects.push(...chunk.buildings);
+        break;
+      case 'vehicle':
+        objects.push(...chunk.vehicles);
+        break;
+      case 'sign':
+        objects.push(...chunk.signs);
+        break;
+      case 'road':
+        objects.push(...chunk.roads);
+        break;
+    }
+    
+    return objects;
+  }
+}

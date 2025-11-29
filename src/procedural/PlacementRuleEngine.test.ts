@@ -12,6 +12,7 @@ import {
   NoRoadOverlapRule, 
   NoObjectCollisionRule, 
   MinimumSpacingRule,
+  BoundaryIntegrityRule,
   BoundingBox
 } from './PlacementRuleEngine';
 import { GeneratedObject, GenerationContext, PlacementRule, RuleViolation } from './Generator';
@@ -421,6 +422,130 @@ describe('PlacementRuleEngine', () => {
       // Place at exactly 10 units distance (should pass)
       const obj2 = createMockObject('building', 10, 0);
       const isValid = engine.isValidPlacement(obj2, mockContext);
+
+      expect(isValid).toBe(true);
+    });
+  });
+
+  describe('BoundaryIntegrityRule', () => {
+    it('should allow objects fully within chunk boundaries', () => {
+      const rule = new BoundaryIntegrityRule(5, ['building']);
+      engine.registerRule(rule);
+
+      // Object well within chunk (chunk is 0-100)
+      const building = createMockObject('building', 50, 50, 10, 10);
+      const isValid = engine.isValidPlacement(building, mockContext);
+
+      expect(isValid).toBe(true);
+    });
+
+    it('should reject objects that extend beyond chunk boundaries', () => {
+      const rule = new BoundaryIntegrityRule(5, ['building']);
+      engine.registerRule(rule);
+
+      // Object extends beyond right boundary (chunk is 0-100)
+      const building = createMockObject('building', 98, 50, 10, 10);
+      const isValid = engine.isValidPlacement(building, mockContext);
+
+      expect(isValid).toBe(false);
+    });
+
+    it('should reject objects that extend beyond left boundary', () => {
+      const rule = new BoundaryIntegrityRule(5, ['building']);
+      engine.registerRule(rule);
+
+      // Object extends beyond left boundary
+      const building = createMockObject('building', 2, 50, 10, 10);
+      const isValid = engine.isValidPlacement(building, mockContext);
+
+      expect(isValid).toBe(false);
+    });
+
+    it('should reject objects that extend beyond top boundary', () => {
+      const rule = new BoundaryIntegrityRule(5, ['building']);
+      engine.registerRule(rule);
+
+      // Object extends beyond top boundary
+      const building = createMockObject('building', 50, 2, 10, 10);
+      const isValid = engine.isValidPlacement(building, mockContext);
+
+      expect(isValid).toBe(false);
+    });
+
+    it('should reject objects that extend beyond bottom boundary', () => {
+      const rule = new BoundaryIntegrityRule(5, ['building']);
+      engine.registerRule(rule);
+
+      // Object extends beyond bottom boundary
+      const building = createMockObject('building', 50, 98, 10, 10);
+      const isValid = engine.isValidPlacement(building, mockContext);
+
+      expect(isValid).toBe(false);
+    });
+
+    it('should prevent duplication in adjacent chunks', () => {
+      const rule = new BoundaryIntegrityRule(5, ['building']);
+      engine.registerRule(rule);
+
+      // Create adjacent chunk with a building near the boundary
+      const adjacentChunk: Chunk = {
+        x: 1,
+        z: 0,
+        worldX: 100,
+        worldZ: 0,
+        roads: [],
+        buildings: [{
+          id: 'adjacent-building',
+          position: new BABYLON.Vector3(101, 0, 50),
+          dimensions: new BABYLON.Vector3(10, 10, 10),
+          rotation: 0,
+          style: { name: 'test', colorPalette: [], windowPattern: 'grid', roofType: 'flat' },
+          mesh: {} as BABYLON.Mesh,
+          imposter: {} as BABYLON.PhysicsImpostor
+        }],
+        vehicles: [],
+        signs: [],
+        meshes: [],
+        imposters: [],
+        generatedAt: Date.now(),
+        seed: 12345
+      };
+
+      mockContext.adjacentChunks = [adjacentChunk];
+
+      // Try to place a building at almost the same position in current chunk
+      const building = createMockObject('building', 99, 50, 10, 10);
+      const isValid = engine.isValidPlacement(building, mockContext);
+
+      // Should be rejected because adjacent chunk should own this object
+      expect(isValid).toBe(false);
+    });
+
+    it('should allow objects owned by current chunk near boundaries', () => {
+      const rule = new BoundaryIntegrityRule(5, ['building']);
+      engine.registerRule(rule);
+
+      // Create adjacent chunk (to the right)
+      const adjacentChunk: Chunk = {
+        x: 1,
+        z: 0,
+        worldX: 100,
+        worldZ: 0,
+        roads: [],
+        buildings: [],
+        vehicles: [],
+        signs: [],
+        meshes: [],
+        imposters: [],
+        generatedAt: Date.now(),
+        seed: 12345
+      };
+
+      mockContext.adjacentChunks = [adjacentChunk];
+
+      // Place building near boundary but clearly in current chunk
+      const building = createMockObject('building', 90, 50, 10, 10);
+      const isValid = engine.isValidPlacement(building, mockContext);
 
       expect(isValid).toBe(true);
     });

@@ -38,6 +38,8 @@ export { VehicleGenerator } from './VehicleGenerator';
 export type { VehicleGeneratorConfig } from './VehicleGenerator';
 export { TerrainGenerator } from './TerrainGenerator';
 export type { TerrainConfig } from './TerrainGenerator';
+export { WorldConfigManager } from './WorldConfig';
+export type { WorldConfig, ValidationResult } from './WorldConfig';
 export { 
   PlacementRuleEngine as PlacementRuleEngineImpl,
   NoRoadOverlapRule,

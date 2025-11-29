@@ -670,5 +670,308 @@ describe('ChunkManager', () => {
         { numRuns: 100 }
       );
     });
+
+    /**
+     * Feature: procedural-world-generation, Property 20: Boundary object integrity
+     * 
+     * For any object placed near a chunk boundary, the object should be complete
+     * (not cut off) and should not be duplicated in adjacent chunks.
+     * 
+     * Validates: Requirements 6.4
+     */
+    it('Property 20: Boundary object integrity', () => {
+      fc.assert(
+        fc.property(
+          // Generate random adjacent chunk pairs
+          fc.record({
+            chunkX: fc.integer({ min: -100, max: 100 }),
+            chunkZ: fc.integer({ min: -100, max: 100 }),
+            // Direction: 0=right, 1=down, 2=left, 3=up
+            direction: fc.integer({ min: 0, max: 3 })
+          }),
+          (testData) => {
+            // Create a fresh chunk manager for each test
+            const testManager = new ChunkManager();
+            const testEngine = new BABYLON.NullEngine();
+            const testScene = new BABYLON.Scene(testEngine);
+            
+            testManager.initialize(testScene, defaultConfig);
+            
+            // Calculate adjacent chunk coordinates based on direction
+            const chunk1X = testData.chunkX;
+            const chunk1Z = testData.chunkZ;
+            let chunk2X = chunk1X;
+            let chunk2Z = chunk1Z;
+            
+            switch (testData.direction) {
+              case 0: chunk2X = chunk1X + 1; break; // Right
+              case 1: chunk2Z = chunk1Z + 1; break; // Down
+              case 2: chunk2X = chunk1X - 1; break; // Left
+              case 3: chunk2Z = chunk1Z - 1; break; // Up
+            }
+            
+            // Generate both chunks
+            const chunk1 = testManager.generateChunk(chunk1X, chunk1Z);
+            const chunk2 = testManager.generateChunk(chunk2X, chunk2Z);
+            
+            // Define boundary margin - objects within this distance from boundary are "near boundary"
+            const boundaryMargin = 10; // 10 units from chunk edge
+            
+            // Calculate boundary position based on direction
+            let boundaryWorldPos: number;
+            let isXBoundary: boolean;
+            
+            switch (testData.direction) {
+              case 0: // Right boundary of chunk1
+                boundaryWorldPos = chunk1.worldX + defaultConfig.chunkSize;
+                isXBoundary = true;
+                break;
+              case 1: // Bottom boundary of chunk1
+                boundaryWorldPos = chunk1.worldZ + defaultConfig.chunkSize;
+                isXBoundary = false;
+                break;
+              case 2: // Left boundary of chunk1
+                boundaryWorldPos = chunk1.worldX;
+                isXBoundary = true;
+                break;
+              case 3: // Top boundary of chunk1
+                boundaryWorldPos = chunk1.worldZ;
+                isXBoundary = false;
+                break;
+              default:
+                boundaryWorldPos = 0;
+                isXBoundary = true;
+            }
+            
+            // Collect all objects near the boundary from both chunks
+            const objectsNearBoundary: Array<{
+              id: string;
+              position: BABYLON.Vector3;
+              dimensions: BABYLON.Vector3;
+              chunkId: string;
+              type: string;
+            }> = [];
+            
+            // Helper to check if object is near boundary
+            const isNearBoundary = (pos: BABYLON.Vector3, dim: BABYLON.Vector3): boolean => {
+              if (isXBoundary) {
+                // Check X boundary
+                const minX = pos.x - dim.x / 2;
+                const maxX = pos.x + dim.x / 2;
+                return Math.abs(minX - boundaryWorldPos) < boundaryMargin ||
+                       Math.abs(maxX - boundaryWorldPos) < boundaryMargin ||
+                       (minX < boundaryWorldPos && maxX > boundaryWorldPos);
+              } else {
+                // Check Z boundary
+                const minZ = pos.z - dim.z / 2;
+                const maxZ = pos.z + dim.z / 2;
+                return Math.abs(minZ - boundaryWorldPos) < boundaryMargin ||
+                       Math.abs(maxZ - boundaryWorldPos) < boundaryMargin ||
+                       (minZ < boundaryWorldPos && maxZ > boundaryWorldPos);
+              }
+            };
+            
+            // Collect buildings near boundary from chunk1
+            for (const building of chunk1.buildings) {
+              if (isNearBoundary(building.position, building.dimensions)) {
+                objectsNearBoundary.push({
+                  id: building.id,
+                  position: building.position,
+                  dimensions: building.dimensions,
+                  chunkId: `${chunk1X},${chunk1Z}`,
+                  type: 'building'
+                });
+              }
+            }
+            
+            // Collect buildings near boundary from chunk2
+            for (const building of chunk2.buildings) {
+              if (isNearBoundary(building.position, building.dimensions)) {
+                objectsNearBoundary.push({
+                  id: building.id,
+                  position: building.position,
+                  dimensions: building.dimensions,
+                  chunkId: `${chunk2X},${chunk2Z}`,
+                  type: 'building'
+                });
+              }
+            }
+            
+            // Collect vehicles near boundary from chunk1
+            for (const vehicle of chunk1.vehicles) {
+              // Estimate vehicle dimensions (vehicles are typically small)
+              const vehicleDim = new BABYLON.Vector3(4, 2, 2);
+              if (isNearBoundary(vehicle.position, vehicleDim)) {
+                objectsNearBoundary.push({
+                  id: vehicle.id,
+                  position: vehicle.position,
+                  dimensions: vehicleDim,
+                  chunkId: `${chunk1X},${chunk1Z}`,
+                  type: 'vehicle'
+                });
+              }
+            }
+            
+            // Collect vehicles near boundary from chunk2
+            for (const vehicle of chunk2.vehicles) {
+              const vehicleDim = new BABYLON.Vector3(4, 2, 2);
+              if (isNearBoundary(vehicle.position, vehicleDim)) {
+                objectsNearBoundary.push({
+                  id: vehicle.id,
+                  position: vehicle.position,
+                  dimensions: vehicleDim,
+                  chunkId: `${chunk2X},${chunk2Z}`,
+                  type: 'vehicle'
+                });
+              }
+            }
+            
+            // Collect signs near boundary from chunk1
+            for (const sign of chunk1.signs) {
+              const signDim = new BABYLON.Vector3(1, 3, 1);
+              if (isNearBoundary(sign.position, signDim)) {
+                objectsNearBoundary.push({
+                  id: sign.id,
+                  position: sign.position,
+                  dimensions: signDim,
+                  chunkId: `${chunk1X},${chunk1Z}`,
+                  type: 'sign'
+                });
+              }
+            }
+            
+            // Collect signs near boundary from chunk2
+            for (const sign of chunk2.signs) {
+              const signDim = new BABYLON.Vector3(1, 3, 1);
+              if (isNearBoundary(sign.position, signDim)) {
+                objectsNearBoundary.push({
+                  id: sign.id,
+                  position: sign.position,
+                  dimensions: signDim,
+                  chunkId: `${chunk2X},${chunk2Z}`,
+                  type: 'sign'
+                });
+              }
+            }
+            
+            // Property 1: No object should be cut off by the boundary
+            // An object is "cut off" if its bounding box crosses the boundary
+            let noObjectsCutOff = true;
+            
+            for (const obj of objectsNearBoundary) {
+              if (isXBoundary) {
+                const minX = obj.position.x - obj.dimensions.x / 2;
+                const maxX = obj.position.x + obj.dimensions.x / 2;
+                
+                // Object is cut off if it straddles the boundary
+                // (part in one chunk, part in another)
+                if (minX < boundaryWorldPos && maxX > boundaryWorldPos) {
+                  // This is acceptable for roads, but not for discrete objects
+                  if (obj.type !== 'road') {
+                    noObjectsCutOff = false;
+                    break;
+                  }
+                }
+              } else {
+                const minZ = obj.position.z - obj.dimensions.z / 2;
+                const maxZ = obj.position.z + obj.dimensions.z / 2;
+                
+                if (minZ < boundaryWorldPos && maxZ > boundaryWorldPos) {
+                  if (obj.type !== 'road') {
+                    noObjectsCutOff = false;
+                    break;
+                  }
+                }
+              }
+            }
+            
+            // Property 2: No object should be duplicated across chunks
+            // Check for objects with very similar positions in different chunks
+            let noDuplicates = true;
+            const duplicateThreshold = 1.0; // Objects within 1 unit are considered duplicates
+            
+            for (let i = 0; i < objectsNearBoundary.length; i++) {
+              for (let j = i + 1; j < objectsNearBoundary.length; j++) {
+                const obj1 = objectsNearBoundary[i];
+                const obj2 = objectsNearBoundary[j];
+                
+                // Only check objects from different chunks
+                if (obj1.chunkId !== obj2.chunkId && obj1.type === obj2.type) {
+                  const dx = obj1.position.x - obj2.position.x;
+                  const dz = obj1.position.z - obj2.position.z;
+                  const distance = Math.sqrt(dx * dx + dz * dz);
+                  
+                  // If two objects of the same type are very close but in different chunks,
+                  // they might be duplicates
+                  if (distance < duplicateThreshold) {
+                    noDuplicates = false;
+                    break;
+                  }
+                }
+              }
+              if (!noDuplicates) break;
+            }
+            
+            // Property 3: Objects should be fully contained within their chunk's bounds
+            // (with some tolerance for objects exactly on the boundary)
+            let objectsWithinBounds = true;
+            const boundaryTolerance = 0.1; // Small tolerance for floating point precision
+            
+            // Check chunk1 objects
+            for (const building of chunk1.buildings) {
+              const minX = building.position.x - building.dimensions.x / 2;
+              const maxX = building.position.x + building.dimensions.x / 2;
+              const minZ = building.position.z - building.dimensions.z / 2;
+              const maxZ = building.position.z + building.dimensions.z / 2;
+              
+              const chunk1MinX = chunk1.worldX - boundaryTolerance;
+              const chunk1MaxX = chunk1.worldX + defaultConfig.chunkSize + boundaryTolerance;
+              const chunk1MinZ = chunk1.worldZ - boundaryTolerance;
+              const chunk1MaxZ = chunk1.worldZ + defaultConfig.chunkSize + boundaryTolerance;
+              
+              // Object should be mostly within chunk bounds
+              // We allow small overlaps at boundaries for objects placed exactly on the edge
+              const centerInBounds = 
+                building.position.x >= chunk1MinX && building.position.x <= chunk1MaxX &&
+                building.position.z >= chunk1MinZ && building.position.z <= chunk1MaxZ;
+              
+              if (!centerInBounds) {
+                objectsWithinBounds = false;
+                break;
+              }
+            }
+            
+            // Check chunk2 objects
+            if (objectsWithinBounds) {
+              for (const building of chunk2.buildings) {
+                const chunk2MinX = chunk2.worldX - boundaryTolerance;
+                const chunk2MaxX = chunk2.worldX + defaultConfig.chunkSize + boundaryTolerance;
+                const chunk2MinZ = chunk2.worldZ - boundaryTolerance;
+                const chunk2MaxZ = chunk2.worldZ + defaultConfig.chunkSize + boundaryTolerance;
+                
+                const centerInBounds = 
+                  building.position.x >= chunk2MinX && building.position.x <= chunk2MaxX &&
+                  building.position.z >= chunk2MinZ && building.position.z <= chunk2MaxZ;
+                
+                if (!centerInBounds) {
+                  objectsWithinBounds = false;
+                  break;
+                }
+              }
+            }
+            
+            // Cleanup
+            testManager.dispose();
+            testScene.dispose();
+            testEngine.dispose();
+            
+            // Property: Objects near boundaries should be complete (not cut off),
+            // not duplicated, and within their chunk's bounds
+            return noObjectsCutOff && noDuplicates && objectsWithinBounds;
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
   });
 });

@@ -1,0 +1,86 @@
+{
+  "chunk": {
+    "chunkSize": 100,
+    "activeRadius": 200,
+    "unloadDistance": 300,
+    "seed": 12345,
+    "generationOrder": [
+      "RoadGenerator",
+      "BuildingGenerator",
+      "TrafficGenerator",
+      "VehicleGenerator"
+    ]
+  },
+  "generators": {
+    "road": {
+      "gridSpacing": 50,
+      "mainRoadWidth": 12,
+      "sideRoadWidth": 8,
+      "mainRoadProbability": 0.3,
+      "sideRoadDensity": 2,
+      "centerLineWidth": 0.2,
+      "edgeLineWidth": 0.15,
+      "crosswalkWidth": 3,
+      "dashLength": 2,
+      "dashGap": 2
+    },
+    "building": {
+      "minHeight": 10,
+      "maxHeight": 50,
+      "minWidth": 8,
+      "maxWidth": 20,
+      "minDepth": 8,
+      "maxDepth": 20,
+      "density": 15,
+      "minSpacing": 5,
+      "roadOffset": 3,
+      "styles": [
+        {
+          "name": "modern",
+          "colorPalette": ["#CCCCCC", "#AAAAAA", "#888888", "#666666"],
+          "windowPattern": "grid",
+          "roofType": "flat"
+        },
+        {
+          "name": "classic",
+          "colorPalette": ["#D4A574", "#C19A6B", "#B8860B", "#8B7355"],
+          "windowPattern": "rows",
+          "roofType": "pitched"
+        }
+      ]
+    },
+    "traffic": {
+      "intersectionSignProbability": 0.8,
+      "roadSignDensity": 0.3,
+      "signHeight": 3,
+      "signSize": 1,
+      "types": [0, 1, 2, 3, 4, 5, 6],
+      "minDistanceFromRoad": 6,
+      "maxDistanceFromRoad": 8,
+      "minSpacing": 10
+    },
+    "vehicle": {
+      "density": 0.3,
+      "minSpacing": 5,
+      "roadsideOffset": 2.5,
+      "typeDistribution": {
+        "0": 0.4,
+        "1": 0.25,
+        "2": 0.2,
+        "3": 0.1,
+        "4": 0.05
+      },
+      "colorPalette": [
+        "#FFFFFF", "#000000", "#C0C0C0", "#808080",
+        "#FF0000", "#0000FF", "#00FF00", "#FFFF00"
+      ],
+      "dimensions": {
+        "0": { "width": 1.8, "height": 1.5, "length": 4.5 },
+        "1": { "width": 2.0, "height": 1.8, "length": 5.0 },
+        "2": { "width": 1.6, "height": 1.4, "length": 3.5 },
+        "3": { "width": 2.2, "height": 2.5, "length": 6.0 },
+        "4": { "width": 2.0, "height": 2.2, "length": 5.5 }
+      }
+    }
+  }
+}
