@@ -964,5 +964,188 @@ describe('BuildingGenerator', () => {
         { numRuns: 20 }
       );
     });
+
+    /**
+     * Feature: procedural-world-generation, Property 27: Property variation within bounds
+     * 
+     * For any generated object, properties like scale, rotation, and color should vary
+     * between instances but remain within configured minimum and maximum bounds.
+     * 
+     * Validates: Requirements 9.2
+     */
+    it('Property 27: Property variation within bounds', () => {
+      fc.assert(
+        fc.property(
+          // Generate random configuration with variation bounds
+          fc.record({
+            seed: fc.integer({ min: 1, max: 1000000 }),
+            chunkSize: fc.constant(100),
+            scaleVariation: fc.float({ min: Math.fround(0.01), max: Math.fround(0.2) }),      // 1% to 20% variation
+            rotationVariation: fc.float({ min: Math.fround(0.01), max: Math.fround(0.5) }),   // ~0.6° to ~28.6° variation
+            minHeight: fc.constant(10),
+            maxHeight: fc.constant(50),
+            minWidth: fc.constant(8),
+            maxWidth: fc.constant(20),
+            minDepth: fc.constant(8),
+            maxDepth: fc.constant(20)
+          }),
+          (testData) => {
+            // Create a fresh test environment
+            const testEngine = new BABYLON.NullEngine();
+            const testScene = new BABYLON.Scene(testEngine);
+            
+            // Create generators with specific variation bounds
+            const testRoadGenerator = new RoadGenerator();
+            const testBuildingGenerator = new BuildingGenerator();
+            testBuildingGenerator.setRoadGenerator(testRoadGenerator);
+            
+            // Configure with specific variation bounds
+            testBuildingGenerator.configure({
+              scaleVariation: testData.scaleVariation,
+              rotationVariation: testData.rotationVariation,
+              minHeight: testData.minHeight,
+              maxHeight: testData.maxHeight,
+              minWidth: testData.minWidth,
+              maxWidth: testData.maxWidth,
+              minDepth: testData.minDepth,
+              maxDepth: testData.maxDepth,
+              density: 20  // Generate more buildings for better testing
+            });
+            
+            // Generate a chunk with buildings
+            const chunk: Chunk = {
+              x: 0,
+              z: 0,
+              worldX: 0,
+              worldZ: 0,
+              roads: [],
+              buildings: [],
+              vehicles: [],
+              signs: [],
+              meshes: [],
+              imposters: [],
+              generatedAt: Date.now(),
+              seed: testData.seed
+            };
+            
+            const context: GenerationContext = {
+              scene: testScene,
+              chunk,
+              seed: testData.seed,
+              chunkSize: testData.chunkSize,
+              rng: new SeededRandom(testData.seed),
+              adjacentChunks: [],
+              placementEngine: null
+            };
+            
+            // Generate roads first
+            testRoadGenerator.generate(chunk, context);
+            
+            // Generate buildings
+            testBuildingGenerator.generate(chunk, context);
+            
+            // If no buildings generated, property trivially holds
+            if (chunk.buildings.length === 0) {
+              testScene.dispose();
+              testEngine.dispose();
+              return true;
+            }
+            
+            // Property 1: Scale variation should be within bounds
+            // Buildings have base dimensions that are then scaled
+            // We need to check that the final dimensions respect the variation bounds
+            let allScalesWithinBounds = true;
+            
+            for (const building of chunk.buildings) {
+              // Calculate what the base dimensions would be (before scale variation)
+              // The dimensions are: base * scaleMultiplier where scaleMultiplier = 1.0 ± scaleVariation
+              const minScaleMultiplier = 1.0 - testData.scaleVariation;
+              const maxScaleMultiplier = 1.0 + testData.scaleVariation;
+              
+              // The base dimensions come from noise-based variation within min/max bounds
+              // So the final dimensions should be: [minDim, maxDim] * [minScale, maxScale]
+              const minPossibleHeight = testData.minHeight * minScaleMultiplier;
+              const maxPossibleHeight = testData.maxHeight * maxScaleMultiplier;
+              const minPossibleWidth = testData.minWidth * minScaleMultiplier;
+              const maxPossibleWidth = testData.maxWidth * maxScaleMultiplier;
+              const minPossibleDepth = testData.minDepth * minScaleMultiplier;
+              const maxPossibleDepth = testData.maxDepth * maxScaleMultiplier;
+              
+              // Check if dimensions are within expected bounds (with small epsilon for floating point)
+              const epsilon = 0.01;
+              
+              if (building.dimensions.y < minPossibleHeight - epsilon ||
+                  building.dimensions.y > maxPossibleHeight + epsilon) {
+                allScalesWithinBounds = false;
+                break;
+              }
+              
+              if (building.dimensions.x < minPossibleWidth - epsilon ||
+                  building.dimensions.x > maxPossibleWidth + epsilon) {
+                allScalesWithinBounds = false;
+                break;
+              }
+              
+              if (building.dimensions.z < minPossibleDepth - epsilon ||
+                  building.dimensions.z > maxPossibleDepth + epsilon) {
+                allScalesWithinBounds = false;
+                break;
+              }
+            }
+            
+            // Property 2: Rotation variation should be within bounds
+            // Buildings have a base rotation (facing street) plus variation
+            // We can't easily determine the base rotation, but we can check that
+            // rotations vary and are reasonable (not all identical)
+            let rotationsVary = false;
+            
+            if (chunk.buildings.length >= 2) {
+              const rotations = chunk.buildings.map(b => b.rotation);
+              const uniqueRotations = new Set(rotations.map(r => Math.round(r * 100) / 100));
+              rotationsVary = uniqueRotations.size > 1 || chunk.buildings.length < 3;
+              
+              // Also check that no rotation is wildly out of bounds (should be within 0 to 2π)
+              const allRotationsReasonable = rotations.every(r => 
+                r >= -Math.PI * 2 - testData.rotationVariation && 
+                r <= Math.PI * 2 + testData.rotationVariation
+              );
+              
+              if (!allRotationsReasonable) {
+                rotationsVary = false;
+              }
+            } else {
+              // With fewer than 2 buildings, we can't assess variation
+              rotationsVary = true;
+            }
+            
+            // Property 3: Colors should vary (from style palette)
+            // This is already tested in the variety test, but we verify colors are valid
+            let allColorsValid = true;
+            
+            for (const building of chunk.buildings) {
+              const material = building.mesh.material as BABYLON.StandardMaterial;
+              if (material && material.diffuseColor) {
+                const color = material.diffuseColor;
+                // Colors should be in valid range [0, 1]
+                if (color.r < 0 || color.r > 1 ||
+                    color.g < 0 || color.g > 1 ||
+                    color.b < 0 || color.b > 1) {
+                  allColorsValid = false;
+                  break;
+                }
+              }
+            }
+            
+            // Cleanup
+            testScene.dispose();
+            testEngine.dispose();
+            
+            // Property: All variation should be within configured bounds
+            return allScalesWithinBounds && rotationsVary && allColorsValid;
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
   });
 });

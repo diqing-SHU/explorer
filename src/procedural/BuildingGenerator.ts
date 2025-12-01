@@ -27,6 +27,10 @@ export interface BuildingGeneratorConfig {
   minSpacing: number;         // Minimum spacing between buildings (default: 5)
   roadOffset: number;         // Minimum distance from roads (default: 3)
   
+  // Variation bounds (Requirement 9.2)
+  scaleVariation?: number;    // Scale variation range (e.g., 0.1 = ±10%)
+  rotationVariation?: number; // Rotation variation in radians (e.g., 0.1 = ±5.7°)
+  
   // Styles
   styles: BuildingStyle[];
 }
@@ -53,6 +57,8 @@ export class BuildingGenerator extends BaseGenerator {
       density: 15,
       minSpacing: 5,
       roadOffset: 3,
+      scaleVariation: 0.05,      // ±5% scale variation (Requirement 9.2)
+      rotationVariation: 0.087,  // ±5° rotation variation (Requirement 9.2)
       styles: this.getDefaultStyles()
     };
   }
@@ -138,14 +144,23 @@ export class BuildingGenerator extends BaseGenerator {
       
       const dimensions = new BABYLON.Vector3(width, height, depth);
       
+      // Apply scale variation within bounds (Requirement 9.2)
+      const scaleVar = this.buildingConfig.scaleVariation || 0;
+      const scaleMultiplier = 1.0 + rng.randomFloat(-scaleVar, scaleVar);
+      const finalDimensions = dimensions.scale(scaleMultiplier);
+      
       // Select random style
       const style = rng.randomElement(this.buildingConfig.styles);
       
       // Calculate rotation to face nearest street (Requirement 5.3)
-      const rotation = this.calculateStreetFacingRotation(pos, chunk, context);
+      let rotation = this.calculateStreetFacingRotation(pos, chunk, context);
       
-      // Create building mesh
-      const mesh = this.createBuildingMesh(pos, dimensions, rotation, style, i, chunk, context.scene);
+      // Apply rotation variation within bounds (Requirement 9.2)
+      const rotVar = this.buildingConfig.rotationVariation || 0;
+      rotation += rng.randomFloat(-rotVar, rotVar);
+      
+      // Create building mesh with varied dimensions
+      const mesh = this.createBuildingMesh(pos, finalDimensions, rotation, style, i, chunk, context.scene);
       
       // Create physics imposter
       const imposter = this.createPhysicsImposter(mesh, context);
@@ -154,7 +169,7 @@ export class BuildingGenerator extends BaseGenerator {
       const building: Building = {
         id: this.createId('building', chunk.x, chunk.z, i),
         position: pos,
-        dimensions,
+        dimensions: finalDimensions,
         rotation,
         style,
         mesh,
@@ -170,7 +185,7 @@ export class BuildingGenerator extends BaseGenerator {
         type: 'building',
         position: pos,
         rotation,
-        scale: dimensions,
+        scale: finalDimensions,
         mesh,
         imposter,
         metadata: { building }

@@ -27,6 +27,10 @@ export interface TrafficGeneratorConfig {
   minDistanceFromRoad: number;          // Minimum distance from road center (default: 6)
   maxDistanceFromRoad: number;          // Maximum distance from road center (default: 8)
   minSpacing: number;                   // Minimum spacing between signs (default: 10)
+  
+  // Variation bounds (Requirement 9.2)
+  scaleVariation?: number;              // Scale variation range (e.g., 0.05 = ±5%)
+  rotationVariation?: number;           // Rotation variation in radians (e.g., 0.05 = ±2.9°)
 }
 
 /**
@@ -61,7 +65,9 @@ export class TrafficGenerator extends BaseGenerator {
       ],
       minDistanceFromRoad: 6,
       maxDistanceFromRoad: 8,
-      minSpacing: 10
+      minSpacing: 10,
+      scaleVariation: 0.02,      // ±2% scale variation (Requirement 9.2)
+      rotationVariation: 0.03    // ±1.7° rotation variation (Requirement 9.2)
     };
   }
 
@@ -424,11 +430,21 @@ export class TrafficGenerator extends BaseGenerator {
     chunk: Chunk,
     context: GenerationContext
   ): GeneratedObject | null {
-    const { scene } = context;
+    const { scene, rng } = context;
     const { signHeight, signSize } = this.trafficConfig;
     
+    // Apply rotation variation within bounds (Requirement 9.2)
+    const rotVar = this.trafficConfig.rotationVariation || 0;
+    const finalRotation = rotation + rng.randomFloat(-rotVar, rotVar);
+    
+    // Apply scale variation within bounds (Requirement 9.2)
+    const scaleVar = this.trafficConfig.scaleVariation || 0;
+    const scaleMultiplier = 1.0 + rng.randomFloat(-scaleVar, scaleVar);
+    const finalSignHeight = signHeight * scaleMultiplier;
+    const finalSignSize = signSize * scaleMultiplier;
+    
     // Create sign mesh (pole + sign face)
-    const signMesh = this.createSignMesh(position, rotation, type, signHeight, signSize, index, chunk, scene);
+    const signMesh = this.createSignMesh(position, finalRotation, type, finalSignHeight, finalSignSize, index, chunk, scene);
     
     if (!signMesh) {
       return null;
@@ -438,7 +454,7 @@ export class TrafficGenerator extends BaseGenerator {
     const sign: TrafficSign = {
       id: this.createId('sign', chunk.x, chunk.z, index),
       position,
-      rotation,
+      rotation: finalRotation,
       type,
       mesh: signMesh
     };
@@ -450,8 +466,8 @@ export class TrafficGenerator extends BaseGenerator {
     return {
       type: 'sign',
       position,
-      rotation,
-      scale: new BABYLON.Vector3(signSize, signHeight, signSize),
+      rotation: finalRotation,
+      scale: new BABYLON.Vector3(finalSignSize, finalSignHeight, finalSignSize),
       mesh: signMesh,
       metadata: { sign }
     };

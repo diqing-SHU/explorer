@@ -97,6 +97,8 @@ export class WorldConfigManager {
           density: 15,
           minSpacing: 5,
           roadOffset: 3,
+          scaleVariation: 0.05,      // ±5% scale variation (Requirement 9.2)
+          rotationVariation: 0.087,  // ±5° rotation variation (Requirement 9.2)
           styles: [
             {
               name: 'modern',
@@ -132,7 +134,9 @@ export class WorldConfigManager {
           types: [0, 1, 2, 3, 4, 5, 6], // All SignType enum values
           minDistanceFromRoad: 6,
           maxDistanceFromRoad: 8,
-          minSpacing: 10
+          minSpacing: 10,
+          scaleVariation: 0.02,      // ±2% scale variation (Requirement 9.2)
+          rotationVariation: 0.03    // ±1.7° rotation variation (Requirement 9.2)
         },
         vehicle: {
           density: 0.3,
@@ -150,6 +154,8 @@ export class WorldConfigManager {
             '#FF0000', '#0000FF', '#00FF00', '#FFFF00',
             '#8B4513', '#4169E1', '#DC143C', '#2F4F4F'
           ],
+          scaleVariation: 0.03,      // ±3% scale variation (Requirement 9.2)
+          rotationVariation: 0.05,   // ±2.9° rotation variation (Requirement 9.2)
           dimensions: {
             0: { width: 1.8, height: 1.5, length: 4.5 }, // Sedan
             1: { width: 2.0, height: 1.8, length: 5.0 }, // SUV

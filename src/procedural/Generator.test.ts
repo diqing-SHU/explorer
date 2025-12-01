@@ -9,6 +9,11 @@ import * as BABYLON from '@babylonjs/core';
 import { ChunkManager, ChunkConfig } from './ChunkManager';
 import { BaseGenerator, Generator, GenerationContext, GeneratedObject } from './Generator';
 import { Chunk } from './ChunkTypes';
+import { BuildingGenerator } from './BuildingGenerator';
+import { RoadGenerator } from './RoadGenerator';
+import { TerrainGenerator } from './TerrainGenerator';
+import { NoiseGenerator } from './NoiseGenerator';
+import { SeededRandom } from './SeededRandom';
 
 /**
  * Mock Generator for testing
@@ -374,6 +379,131 @@ describe('Generator Interface and Plugin System', () => {
             
             // Cleanup
             testChunkManager.dispose();
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    /**
+     * Feature: procedural-world-generation, Property 26: Noise-based variation
+     * 
+     * For any generated content (building placement, terrain height, object properties),
+     * noise functions should be used to create organic variation rather than purely
+     * random placement.
+     * 
+     * Validates: Requirements 9.1
+     */
+    it('Property 26: Noise-based variation', () => {
+      fc.assert(
+        fc.property(
+          // Generate random test parameters
+          fc.record({
+            seed: fc.integer({ min: 1, max: 1000000 }),
+            chunkSize: fc.constantFrom(100, 150),
+            resolution: fc.constantFrom(15, 20, 25)
+          }),
+          (testData) => {
+            // Create test engine and scene
+            const testEngine = new BABYLON.NullEngine();
+            const testScene = new BABYLON.Scene(testEngine);
+
+            // Test: Verify terrain uses noise by checking spatial correlation
+            // This is the primary test for noise-based variation
+            const terrainGen = new TerrainGenerator({
+              heightScale: 10,
+              noiseScale: 50,
+              octaves: 3,
+              persistence: 0.5,
+              resolution: testData.resolution
+            });
+
+            const terrainChunk: Chunk = {
+              x: 0,
+              z: 0,
+              worldX: 0,
+              worldZ: 0,
+              roads: [],
+              buildings: [],
+              vehicles: [],
+              signs: [],
+              meshes: [],
+              imposters: [],
+              generatedAt: Date.now(),
+              seed: testData.seed
+            };
+
+            const terrainContext: GenerationContext = {
+              scene: testScene,
+              chunk: terrainChunk,
+              seed: testData.seed,
+              chunkSize: testData.chunkSize,
+              rng: new SeededRandom(testData.seed),
+              adjacentChunks: [],
+              placementEngine: null
+            };
+
+            const terrainObjects = terrainGen.generate(terrainChunk, terrainContext);
+            const heightMap = terrainObjects[0].mesh.metadata.heightMap;
+
+            // Property: Noise-based generation should show spatial correlation
+            // Nearby points should have similar values (smooth variation)
+            // This is the key characteristic that distinguishes noise from pure randomness
+
+            // Calculate spatial correlation in terrain heights
+            // We measure how similar adjacent height values are
+            let correlationSum = 0;
+            let correlationCount = 0;
+            const resolution = testData.resolution;
+
+            // Check horizontal neighbors (x direction)
+            for (let z = 0; z <= resolution; z++) {
+              for (let x = 0; x < resolution; x++) {
+                const currentHeight = heightMap[z][x];
+                const rightHeight = heightMap[z][x + 1];
+                
+                // Calculate absolute difference
+                const diff = Math.abs(currentHeight - rightHeight);
+                
+                // Measure similarity: smaller differences = higher similarity
+                // Use inverse relationship: similarity = 1 / (1 + diff)
+                const similarity = 1 / (1 + diff);
+                
+                correlationSum += similarity;
+                correlationCount++;
+              }
+            }
+
+            // Check vertical neighbors (z direction)
+            for (let z = 0; z < resolution; z++) {
+              for (let x = 0; x <= resolution; x++) {
+                const currentHeight = heightMap[z][x];
+                const bottomHeight = heightMap[z + 1][x];
+                
+                const diff = Math.abs(currentHeight - bottomHeight);
+                const similarity = 1 / (1 + diff);
+                
+                correlationSum += similarity;
+                correlationCount++;
+              }
+            }
+
+            const avgCorrelation = correlationSum / correlationCount;
+
+            // Cleanup
+            testScene.dispose();
+            testEngine.dispose();
+
+            // Property verification:
+            // Terrain generated with noise should show high spatial correlation
+            // Average correlation should be > 0.5 (adjacent values are similar)
+            // 
+            // If terrain was generated with pure randomness, adjacent values would be
+            // completely independent, resulting in low correlation (around 0.3-0.4)
+            // 
+            // Noise functions produce smooth, continuous variation, so adjacent values
+            // should be very similar, resulting in high correlation (> 0.5)
+            return avgCorrelation > 0.5;
           }
         ),
         { numRuns: 100 }

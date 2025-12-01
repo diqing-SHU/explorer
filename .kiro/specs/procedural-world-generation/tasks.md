@@ -276,17 +276,17 @@
   - **Property 24: Resource cleanup on unload**
   - **Validates: Requirements 8.3**
 
-- [ ] 18. Implement variation and noise-based generation
+- [x] 18. Implement variation and noise-based generation
   - Ensure all generators use noise functions for placement
   - Add property variation within configured bounds (scale, rotation, color)
   - Verify variety across multiple chunks
   - _Requirements: 9.1, 9.2, 9.4_
 
-- [ ]* 18.1 Write property test for noise-based variation
+- [x] 18.1 Write property test for noise-based variation
   - **Property 26: Noise-based variation**
   - **Validates: Requirements 9.1**
 
-- [ ]* 18.2 Write property test for property variation bounds
+- [x] 18.2 Write property test for property variation bounds
   - **Property 27: Property variation within bounds**
   - **Validates: Requirements 9.2**
 

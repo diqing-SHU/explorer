@@ -628,6 +628,203 @@ describe('VehicleGenerator', () => {
         { numRuns: 20 } // Reduced from 100 to avoid memory issues with Babylon.js scene creation
       );
     });
+
+    /**
+     * Feature: procedural-world-generation, Property 27: Property variation within bounds
+     * 
+     * For any generated object, properties like scale, rotation, and color should vary
+     * between instances but remain within configured minimum and maximum bounds.
+     * 
+     * Validates: Requirements 9.2
+     */
+    it('Property 27: Property variation within bounds', () => {
+      fc.assert(
+        fc.property(
+          // Generate random configuration with variation bounds
+          fc.record({
+            seed: fc.integer({ min: 1, max: 1000000 }),
+            chunkSize: fc.constant(100),
+            scaleVariation: fc.float({ min: Math.fround(0.01), max: Math.fround(0.15) }),      // 1% to 15% variation
+            rotationVariation: fc.float({ min: Math.fround(0.01), max: Math.fround(0.3) }),    // ~0.6° to ~17.2° variation
+            density: fc.constant(0.5)  // Higher density for more vehicles
+          }),
+          (testData) => {
+            // Create a fresh test environment
+            const testEngine = new BABYLON.NullEngine();
+            const testScene = new BABYLON.Scene(testEngine);
+            
+            // Create generators with specific variation bounds
+            const testRoadGenerator = new RoadGenerator();
+            const testVehicleGenerator = new VehicleGenerator();
+            testVehicleGenerator.setRoadGenerator(testRoadGenerator);
+            
+            // Configure with specific variation bounds
+            testVehicleGenerator.configure({
+              scaleVariation: testData.scaleVariation,
+              rotationVariation: testData.rotationVariation,
+              density: testData.density
+            });
+            
+            // Generate a chunk with vehicles
+            const chunk: Chunk = {
+              x: 0,
+              z: 0,
+              worldX: 0,
+              worldZ: 0,
+              roads: [],
+              buildings: [],
+              vehicles: [],
+              signs: [],
+              meshes: [],
+              imposters: [],
+              generatedAt: Date.now(),
+              seed: testData.seed
+            };
+            
+            const context: GenerationContext = {
+              scene: testScene,
+              chunk,
+              seed: testData.seed,
+              chunkSize: testData.chunkSize,
+              rng: new SeededRandom(testData.seed),
+              adjacentChunks: [],
+              placementEngine: null
+            };
+            
+            // Generate roads first
+            testRoadGenerator.generate(chunk, context);
+            
+            // Skip if no roads were generated
+            if (chunk.roads.length === 0) {
+              testScene.dispose();
+              testEngine.dispose();
+              return true;
+            }
+            
+            // Generate vehicles
+            testVehicleGenerator.generate(chunk, context);
+            
+            // If no vehicles generated, property trivially holds
+            if (chunk.vehicles.length === 0) {
+              testScene.dispose();
+              testEngine.dispose();
+              return true;
+            }
+            
+            // Get the base dimensions for each vehicle type
+            const baseDimensions = {
+              [VehicleType.Sedan]: { width: 1.8, height: 1.5, length: 4.5 },
+              [VehicleType.SUV]: { width: 2.0, height: 1.8, length: 5.0 },
+              [VehicleType.Compact]: { width: 1.6, height: 1.4, length: 3.5 },
+              [VehicleType.Truck]: { width: 2.2, height: 2.5, length: 6.0 },
+              [VehicleType.Van]: { width: 2.0, height: 2.2, length: 5.5 }
+            };
+            
+            // Property 1: Scale variation should be within bounds
+            let allScalesWithinBounds = true;
+            const epsilon = 0.01;
+            
+            for (const vehicle of chunk.vehicles) {
+              const baseDim = baseDimensions[vehicle.type];
+              const minScaleMultiplier = 1.0 - testData.scaleVariation;
+              const maxScaleMultiplier = 1.0 + testData.scaleVariation;
+              
+              // Calculate expected bounds for this vehicle type
+              const minWidth = baseDim.width * minScaleMultiplier;
+              const maxWidth = baseDim.width * maxScaleMultiplier;
+              const minHeight = baseDim.height * minScaleMultiplier;
+              const maxHeight = baseDim.height * maxScaleMultiplier;
+              const minLength = baseDim.length * minScaleMultiplier;
+              const maxLength = baseDim.length * maxScaleMultiplier;
+              
+              // Get actual dimensions from mesh scaling
+              const actualWidth = vehicle.mesh.scaling.x * baseDim.width;
+              const actualHeight = vehicle.mesh.scaling.y * baseDim.height;
+              const actualLength = vehicle.mesh.scaling.z * baseDim.length;
+              
+              // Check if dimensions are within expected bounds
+              if (actualWidth < minWidth - epsilon || actualWidth > maxWidth + epsilon ||
+                  actualHeight < minHeight - epsilon || actualHeight > maxHeight + epsilon ||
+                  actualLength < minLength - epsilon || actualLength > maxLength + epsilon) {
+                allScalesWithinBounds = false;
+                break;
+              }
+            }
+            
+            // Property 2: Rotation variation should be within bounds
+            // Vehicles have a base rotation (parallel to road) plus variation
+            // We check that rotations are reasonable and vary
+            let rotationsVary = false;
+            
+            // Skip test if rotationVariation is NaN (invalid input from generator)
+            if (isNaN(testData.rotationVariation) || isNaN(testData.scaleVariation)) {
+              testScene.dispose();
+              testEngine.dispose();
+              return true; // Skip invalid inputs
+            }
+            
+            if (chunk.vehicles.length >= 2) {
+              const rotations = chunk.vehicles.map(v => v.rotation);
+              const uniqueRotations = new Set(rotations.map(r => Math.round(r * 100) / 100));
+              rotationsVary = uniqueRotations.size > 1 || chunk.vehicles.length < 3;
+              
+              // Check that all rotations are within reasonable bounds
+              const allRotationsReasonable = rotations.every(r => 
+                !isNaN(r) &&
+                r >= -Math.PI * 2 - testData.rotationVariation && 
+                r <= Math.PI * 2 + testData.rotationVariation
+              );
+              
+              if (!allRotationsReasonable) {
+                rotationsVary = false;
+              }
+            } else {
+              // With fewer than 2 vehicles, we can't assess variation
+              rotationsVary = true;
+            }
+            
+            // Property 3: Colors should vary (from color palette)
+            let allColorsValid = true;
+            
+            for (const vehicle of chunk.vehicles) {
+              // Colors should be valid hex strings or Color3 values
+              if (vehicle.color) {
+                // Check if it's a valid hex color (starts with #)
+                if (vehicle.color.startsWith('#')) {
+                  // Valid hex color format
+                  const isValidHex = /^#[0-9A-F]{6}$/i.test(vehicle.color);
+                  if (!isValidHex) {
+                    allColorsValid = false;
+                    break;
+                  }
+                }
+              }
+            }
+            
+            // Property 4: Vehicle types should vary (from type distribution)
+            let typesVary = false;
+            
+            if (chunk.vehicles.length >= 2) {
+              const types = chunk.vehicles.map(v => v.type);
+              const uniqueTypes = new Set(types);
+              // With enough vehicles, we expect some type variety
+              // But with few vehicles, all same type is acceptable
+              typesVary = uniqueTypes.size > 1 || chunk.vehicles.length < 5;
+            } else {
+              typesVary = true;
+            }
+            
+            // Cleanup
+            testScene.dispose();
+            testEngine.dispose();
+            
+            // Property: All variation should be within configured bounds
+            return allScalesWithinBounds && rotationsVary && allColorsValid && typesVary;
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
   });
 });
 

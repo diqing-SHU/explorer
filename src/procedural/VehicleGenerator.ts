@@ -26,6 +26,10 @@ export interface VehicleGeneratorConfig {
   // Color variation
   colorPalette: string[];
   
+  // Variation bounds (Requirement 9.2)
+  scaleVariation?: number;    // Scale variation range (e.g., 0.05 = ±5%)
+  rotationVariation?: number; // Rotation variation in radians (e.g., 0.05 = ±2.9°)
+  
   // Dimensions for each vehicle type
   dimensions: {
     [key in VehicleType]: {
@@ -68,6 +72,8 @@ export class VehicleGenerator extends BaseGenerator {
         '#FF0000', '#0000FF', '#00FF00', '#FFFF00',  // Red, Blue, Green, Yellow
         '#8B4513', '#4169E1', '#DC143C', '#2F4F4F'   // Brown, Royal Blue, Crimson, Dark Slate
       ],
+      scaleVariation: 0.03,      // ±3% scale variation (Requirement 9.2)
+      rotationVariation: 0.05,   // ±2.9° rotation variation (Requirement 9.2)
       dimensions: {
         [VehicleType.Sedan]: { width: 1.8, height: 1.5, length: 4.5 },
         [VehicleType.SUV]: { width: 2.0, height: 1.8, length: 5.0 },
@@ -214,7 +220,15 @@ export class VehicleGenerator extends BaseGenerator {
         const color = rng.randomElement(this.vehicleConfig.colorPalette);
         
         // Calculate rotation parallel to road (Requirement 4.3)
-        const rotation = posData.rotation;
+        let rotation = posData.rotation;
+        
+        // Apply rotation variation within bounds (Requirement 9.2)
+        const rotVar = this.vehicleConfig.rotationVariation || 0;
+        rotation += rng.randomFloat(-rotVar, rotVar);
+        
+        // Apply scale variation within bounds (Requirement 9.2)
+        const scaleVar = this.vehicleConfig.scaleVariation || 0;
+        const scaleMultiplier = 1.0 + rng.randomFloat(-scaleVar, scaleVar);
         
         // Create vehicle mesh using instancing (Requirement 8.5)
         const mesh = this.createVehicleInstance(
@@ -225,7 +239,8 @@ export class VehicleGenerator extends BaseGenerator {
           chunk.x,
           chunk.z,
           segmentIndex * 100 + i,
-          context.scene
+          context.scene,
+          scaleMultiplier
         );
         
         // Create physics imposter (optional for static vehicles)
@@ -260,9 +275,9 @@ export class VehicleGenerator extends BaseGenerator {
           position: posData.position,
           rotation,
           scale: new BABYLON.Vector3(
-            this.vehicleConfig.dimensions[vehicleType].width,
-            this.vehicleConfig.dimensions[vehicleType].height,
-            this.vehicleConfig.dimensions[vehicleType].length
+            this.vehicleConfig.dimensions[vehicleType].width * scaleMultiplier,
+            this.vehicleConfig.dimensions[vehicleType].height * scaleMultiplier,
+            this.vehicleConfig.dimensions[vehicleType].length * scaleMultiplier
           ),
           mesh,
           imposter,
@@ -383,7 +398,8 @@ export class VehicleGenerator extends BaseGenerator {
     chunkX: number,
     chunkZ: number,
     index: number,
-    _scene: BABYLON.Scene // Scene parameter kept for API compatibility
+    _scene: BABYLON.Scene, // Scene parameter kept for API compatibility
+    scaleMultiplier: number = 1.0 // Scale variation (Requirement 9.2)
   ): BABYLON.InstancedMesh {
     // Get template mesh for this vehicle type
     const template = this.vehicleTemplates.get(vehicleType);
@@ -401,6 +417,9 @@ export class VehicleGenerator extends BaseGenerator {
     
     // Rotate to align with road (Requirement 4.3)
     instance.rotation.y = rotation;
+    
+    // Apply scale variation (Requirement 9.2)
+    instance.scaling = new BABYLON.Vector3(scaleMultiplier, scaleMultiplier, scaleMultiplier);
     
     // Note: Instanced meshes inherit material from template
     // For color variation (Requirement 4.5), we could use:
