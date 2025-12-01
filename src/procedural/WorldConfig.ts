@@ -11,6 +11,7 @@ import { RoadGeneratorConfig } from './RoadGenerator';
 import { BuildingGeneratorConfig } from './BuildingGenerator';
 import { TrafficGeneratorConfig } from './TrafficGenerator';
 import { VehicleGeneratorConfig } from './VehicleGenerator';
+import { SignType, VehicleType } from './ChunkTypes';
 
 /**
  * Complete world generation configuration
@@ -131,7 +132,15 @@ export class WorldConfigManager {
           roadSignDensity: 0.3,
           signHeight: 3,
           signSize: 1,
-          types: [0, 1, 2, 3, 4, 5, 6], // All SignType enum values
+          types: [
+            SignType.StopSign,
+            SignType.TrafficLight,
+            SignType.SpeedLimit,
+            SignType.StreetName,
+            SignType.Directional,
+            SignType.Yield,
+            SignType.NoPark
+          ],
           minDistanceFromRoad: 6,
           maxDistanceFromRoad: 8,
           minSpacing: 10,
@@ -141,13 +150,13 @@ export class WorldConfigManager {
         vehicle: {
           density: 0.3,
           minSpacing: 5,
-          roadsideOffset: 2.5,
+          roadsideOffset: 2.0,  // Offset from road center to place in lane (2m for 4m lane)
           typeDistribution: {
-            0: 0.4,  // Sedan
-            1: 0.25, // SUV
-            2: 0.2,  // Compact
-            3: 0.1,  // Truck
-            4: 0.05  // Van
+            [VehicleType.Sedan]: 0.4,
+            [VehicleType.SUV]: 0.25,
+            [VehicleType.Compact]: 0.2,
+            [VehicleType.Truck]: 0.1,
+            [VehicleType.Van]: 0.05
           },
           colorPalette: [
             '#FFFFFF', '#000000', '#C0C0C0', '#808080',
@@ -157,11 +166,11 @@ export class WorldConfigManager {
           scaleVariation: 0.03,      // ±3% scale variation (Requirement 9.2)
           rotationVariation: 0.05,   // ±2.9° rotation variation (Requirement 9.2)
           dimensions: {
-            0: { width: 1.8, height: 1.5, length: 4.5 }, // Sedan
-            1: { width: 2.0, height: 1.8, length: 5.0 }, // SUV
-            2: { width: 1.6, height: 1.4, length: 3.5 }, // Compact
-            3: { width: 2.2, height: 2.5, length: 6.0 }, // Truck
-            4: { width: 2.0, height: 2.2, length: 5.5 }  // Van
+            [VehicleType.Sedan]: { width: 1.8, height: 1.4, length: 4.2 },
+            [VehicleType.SUV]: { width: 2.0, height: 1.7, length: 4.8 },
+            [VehicleType.Compact]: { width: 1.6, height: 1.3, length: 3.2 },
+            [VehicleType.Truck]: { width: 2.4, height: 2.3, length: 5.5 },
+            [VehicleType.Van]: { width: 2.0, height: 2.0, length: 5.0 }
           }
         }
       }

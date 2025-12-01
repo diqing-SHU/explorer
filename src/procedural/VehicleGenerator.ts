@@ -123,15 +123,20 @@ export class VehicleGenerator extends BaseGenerator {
       const dimensions = this.vehicleConfig.dimensions[vehicleType];
       
       // Create template mesh (not visible, used for instancing)
+      // Note: In Babylon.js, width is X-axis, depth is Z-axis
+      // We swap width and length so vehicles are oriented correctly along roads
       const template = BABYLON.MeshBuilder.CreateBox(
         `vehicleTemplate_${vehicleType}`,
         {
-          width: dimensions.width,
-          height: dimensions.height,
-          depth: dimensions.length
+          width: dimensions.length,   // Vehicle length becomes width (X-axis)
+          height: dimensions.height,  // Vehicle height (Y-axis)
+          depth: dimensions.width     // Vehicle width becomes depth (Z-axis)
         },
         scene
       );
+      
+      // Rotate template 90 degrees so length aligns with road direction
+      template.rotation.y = Math.PI / 2;
       
       // Make template invisible (instances will be visible)
       template.isVisible = false;

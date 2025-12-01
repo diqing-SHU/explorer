@@ -3,11 +3,6 @@
  */
 
 import { GameManager } from './GameManager';
-import { EnvironmentConfig } from './EnvironmentManager';
-import abandonedBuildingsConfigRaw from './environments/abandoned-buildings.json';
-
-// Type assertion for the imported JSON
-const abandonedBuildingsConfig = abandonedBuildingsConfigRaw as EnvironmentConfig;
 
 console.log('3D Exploration Game - Starting...');
 
@@ -22,27 +17,46 @@ if (!canvas) {
 // Initialize game
 const gameManager = new GameManager();
 
-try {
-  // Initialize the game manager with the canvas
-  gameManager.initialize(canvas);
+// Use async IIFE to handle async initialization
+(async () => {
+  try {
+    // Initialize the game manager with the canvas
+    // This shows the loading indicator
+    gameManager.updateLoadingMessage('Initializing game engine...');
+    console.log('Initializing game engine...');
+    gameManager.initialize(canvas);
 
-  // Load the abandoned buildings environment
-  gameManager.loadEnvironment(abandonedBuildingsConfig);
+    // Setup basic environment (lighting and skybox)
+    gameManager.updateLoadingMessage('Setting up environment...');
+    console.log('Setting up environment...');
+    gameManager.setupBasicEnvironment();
 
-  // Start the render loop
-  gameManager.start();
+    // Enable procedural world generation
+    // This will generate roads, buildings, vehicles, and traffic dynamically as you explore
+    // The loading indicator stays visible during this async operation
+    gameManager.updateLoadingMessage('Setting up procedural world generation...');
+    console.log('Setting up procedural world generation...');
+    await gameManager.enableProceduralGeneration();
+    console.log('Procedural generation ready!');
 
-  // Hide loading indicator once game is ready
-  // Validates: Requirement 7.2
-  gameManager.hideLoading();
+    // Start the render loop
+    gameManager.updateLoadingMessage('Starting game...');
+    console.log('Starting game...');
+    gameManager.start();
 
-  console.log('Game initialized and running');
-  console.log('Controls: WASD to move, Mouse to look around');
-  console.log('Click on the canvas to enable mouse look');
-} catch (error) {
-  console.error('Failed to initialize game:', error);
-  // Error display is handled by GameManager.handleError
-}
+    // Hide loading indicator once game is fully ready
+    // Validates: Requirement 7.2
+    gameManager.hideLoading();
+
+    console.log('Game initialized and running');
+    console.log('Controls: WASD to move, Mouse to look around, Space to jump');
+    console.log('Click on the canvas to enable mouse look');
+    console.log('The world will generate dynamically as you explore!');
+  } catch (error) {
+    console.error('Failed to initialize game:', error);
+    // Error display is handled by GameManager.handleError
+  }
+})();
 
 // Make gameManager available globally for debugging
 (window as any).gameManager = gameManager;

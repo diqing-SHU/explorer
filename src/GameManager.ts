@@ -2,6 +2,7 @@ import * as BABYLON from '@babylonjs/core';
 import * as CANNON from 'cannon';
 import { PlayerController } from './PlayerController';
 import { EnvironmentManager, EnvironmentConfig } from './EnvironmentManager';
+import { ChunkManager, WorldConfigManager } from './procedural';
 
 /**
  * GameManager coordinates game initialization, scene management, and game loop
@@ -12,7 +13,10 @@ export class GameManager {
   private scene: BABYLON.Scene | null = null;
   private playerController: PlayerController | null = null;
   private environmentManager: EnvironmentManager | null = null;
+  private chunkManager: ChunkManager | null = null;
+  private worldConfigManager: WorldConfigManager | null = null;
   private isRunning: boolean = false;
+  private proceduralGenerationEnabled: boolean = false;
 
   /**
    * Initialize the game with the provided canvas element
@@ -77,6 +81,13 @@ export class GameManager {
       if (this.playerController && this.isRunning) {
         const deltaTime = this.engine!.getDeltaTime() / 1000; // Convert to seconds
         this.playerController.update(deltaTime);
+        
+        // Update chunk manager if procedural generation is enabled
+        // Validates: Requirements 12.3
+        if (this.chunkManager && this.proceduralGenerationEnabled) {
+          const playerPosition = this.playerController.getCamera().position;
+          this.chunkManager.update(playerPosition);
+        }
       }
     });
 
@@ -139,6 +150,34 @@ export class GameManager {
   }
 
   /**
+   * Get the chunk manager
+   * Validates: Requirement 12.1
+   */
+  public getChunkManager(): ChunkManager {
+    if (!this.chunkManager) {
+      throw new Error('ChunkManager not initialized');
+    }
+    return this.chunkManager;
+  }
+
+  /**
+   * Get the world config manager
+   */
+  public getWorldConfigManager(): WorldConfigManager {
+    if (!this.worldConfigManager) {
+      throw new Error('WorldConfigManager not initialized');
+    }
+    return this.worldConfigManager;
+  }
+
+  /**
+   * Check if procedural generation is enabled
+   */
+  public isProceduralGenerationEnabled(): boolean {
+    return this.proceduralGenerationEnabled;
+  }
+
+  /**
    * Load environment from configuration
    * Validates: Requirements 5.1, 5.2, 5.3, 5.4
    * 
@@ -156,6 +195,230 @@ export class GameManager {
     
     // Add skybox for better visual quality
     this.setupSkybox();
+  }
+
+  /**
+   * Enable procedural world generation
+   * Initializes ChunkManager and generators for infinite world generation
+   * Validates: Requirements 12.1, 12.2, 12.3, 12.4
+   * 
+   * @param worldConfig - Optional world configuration (uses default if not provided)
+   * @returns Promise that resolves when procedural generation is fully initialized
+   */
+  public async enableProceduralGeneration(worldConfig?: WorldConfigManager): Promise<void> {
+    if (!this.scene) {
+      throw new Error('Scene not initialized');
+    }
+
+    console.log('Initializing chunk manager...');
+    // Create or use provided world config manager
+    this.worldConfigManager = worldConfig || new WorldConfigManager();
+
+    // Initialize chunk manager
+    // Validates: Requirements 12.1, 12.3
+    this.chunkManager = new ChunkManager();
+    this.chunkManager.initialize(this.scene, this.worldConfigManager.getChunkConfig());
+
+    console.log('Loading generators...');
+    // Import and register generators (wait for completion)
+    await this.setupGenerators();
+
+    // Enable procedural generation in update loop
+    this.proceduralGenerationEnabled = true;
+
+    console.log('Procedural generation enabled');
+    console.log('World config:', this.worldConfigManager.getConfig());
+  }
+
+  /**
+   * Disable procedural world generation
+   * Stops chunk generation and cleans up resources
+   */
+  public disableProceduralGeneration(): void {
+    this.proceduralGenerationEnabled = false;
+
+    if (this.chunkManager) {
+      this.chunkManager.dispose();
+      this.chunkManager = null;
+    }
+
+    this.worldConfigManager = null;
+
+    console.log('Procedural generation disabled');
+  }
+
+  /**
+   * Setup and register all generators with the chunk manager
+   * Validates: Requirements 12.1, 12.2, 12.4
+   * @returns Promise that resolves when all generators are registered
+   */
+  private async setupGenerators(): Promise<void> {
+    if (!this.chunkManager || !this.worldConfigManager) {
+      return;
+    }
+
+    try {
+      // Import generators dynamically to avoid circular dependencies
+      const { 
+        RoadGenerator, 
+        BuildingGenerator, 
+        TrafficGenerator, 
+        VehicleGenerator,
+        TerrainGenerator,
+        PlacementRuleEngineImpl,
+        NoRoadOverlapRule,
+        NoObjectCollisionRule,
+        MinimumSpacingRule
+      } = await import('./procedural');
+
+      if (!this.chunkManager || !this.worldConfigManager) {
+        return;
+      }
+
+      // Create placement rule engine
+      // Validates: Requirement 10.4
+      const placementEngine = new PlacementRuleEngineImpl(10);
+      placementEngine.registerRule(new NoRoadOverlapRule(['building', 'vehicle', 'sign']));
+      placementEngine.registerRule(new NoObjectCollisionRule(placementEngine, ['building', 'vehicle', 'sign']));
+      placementEngine.registerRule(new MinimumSpacingRule(placementEngine, 5, ['building']));
+      this.chunkManager.setPlacementEngine(placementEngine);
+
+      // Create and register generators
+      // Validates: Requirements 12.2, 12.4
+      const roadGenerator = new RoadGenerator();
+      const buildingGenerator = new BuildingGenerator();
+      const trafficGenerator = new TrafficGenerator();
+      const vehicleGenerator = new VehicleGenerator();
+      const terrainGenerator = new TerrainGenerator({
+        heightScale: 2,
+        noiseScale: 0.05,
+        octaves: 3,
+        persistence: 0.5,
+        resolution: 20
+      });
+
+      // Configure generators with world config
+      roadGenerator.configure(this.worldConfigManager.getRoadConfig());
+      buildingGenerator.configure(this.worldConfigManager.getBuildingConfig());
+      trafficGenerator.configure(this.worldConfigManager.getTrafficConfig());
+      vehicleGenerator.configure(this.worldConfigManager.getVehicleConfig());
+
+      // Wire up generator dependencies
+      // BuildingGenerator needs RoadGenerator to avoid placing buildings on roads
+      buildingGenerator.setRoadGenerator(roadGenerator);
+      
+      // TrafficGenerator needs RoadGenerator to place signs along roads
+      trafficGenerator.setRoadGenerator(roadGenerator);
+      trafficGenerator.setBuildingGenerator(buildingGenerator);
+      
+      // VehicleGenerator needs RoadGenerator to place vehicles along roads
+      vehicleGenerator.setRoadGenerator(roadGenerator);
+
+      // Register generators in the correct order
+      this.chunkManager.registerGenerator(terrainGenerator);
+      this.chunkManager.registerGenerator(roadGenerator);
+      this.chunkManager.registerGenerator(buildingGenerator);
+      this.chunkManager.registerGenerator(trafficGenerator);
+      this.chunkManager.registerGenerator(vehicleGenerator);
+
+      console.log('Generators registered:', [
+        terrainGenerator.getName(),
+        roadGenerator.getName(),
+        buildingGenerator.getName(),
+        trafficGenerator.getName(),
+        vehicleGenerator.getName()
+      ]);
+    } catch (error) {
+      console.error('Failed to load generators:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Setup basic scene environment (lighting, skybox, and ground)
+   * Validates: Requirements 6.1, 6.2
+   */
+  public setupBasicEnvironment(): void {
+    if (!this.scene) {
+      throw new Error('Scene not initialized');
+    }
+
+    // Setup ground plane
+    this.setupGround();
+
+    // Setup lighting
+    this.setupLighting();
+    
+    // Setup skybox
+    this.setupSkybox();
+    
+    console.log('Basic environment configured');
+  }
+
+  /**
+   * Setup ground plane
+   * Validates: Requirement 5.1
+   */
+  private setupGround(): void {
+    if (!this.scene) {
+      return;
+    }
+
+    // Create a large ground plane
+    const ground = BABYLON.MeshBuilder.CreateGround(
+      'ground',
+      { width: 10000, height: 10000 },
+      this.scene
+    );
+
+    // Create material for ground
+    const groundMaterial = new BABYLON.StandardMaterial('groundMaterial', this.scene);
+    
+    // Set ground color (grayish for urban environment)
+    groundMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+    groundMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+    
+    ground.material = groundMaterial;
+
+    // Create physics imposter for ground
+    ground.physicsImpostor = new BABYLON.PhysicsImpostor(
+      ground,
+      BABYLON.PhysicsImpostor.BoxImpostor,
+      { mass: 0, friction: 0.5, restitution: 0.0 },
+      this.scene
+    );
+
+    console.log('Ground configured');
+  }
+
+  /**
+   * Setup lighting for the scene
+   * Validates: Requirement 5.3
+   */
+  private setupLighting(): void {
+    if (!this.scene) {
+      return;
+    }
+
+    // Create ambient light for overall illumination
+    const ambientLight = new BABYLON.HemisphericLight(
+      'ambientLight',
+      new BABYLON.Vector3(0, 1, 0),
+      this.scene
+    );
+    ambientLight.intensity = 0.6;
+    ambientLight.diffuse = new BABYLON.Color3(1, 1, 1);
+
+    // Create directional light (sun)
+    const directionalLight = new BABYLON.DirectionalLight(
+      'directionalLight',
+      new BABYLON.Vector3(0.5, -1, 0.5),
+      this.scene
+    );
+    directionalLight.intensity = 0.8;
+    directionalLight.diffuse = new BABYLON.Color3(1, 0.95, 0.9);
+
+    console.log('Lighting configured');
   }
 
   /**
@@ -177,7 +440,7 @@ export class GameManager {
     // Create material for skybox
     const skyboxMaterial = new BABYLON.StandardMaterial('skyboxMaterial', this.scene);
     
-    // Set sky color gradient (abandoned/desolate atmosphere)
+    // Set sky color gradient (urban atmosphere)
     skyboxMaterial.diffuseColor = new BABYLON.Color3(0.6, 0.7, 0.8);
     skyboxMaterial.emissiveColor = new BABYLON.Color3(0.5, 0.6, 0.7);
     skyboxMaterial.backFaceCulling = false; // Render inside of sphere
@@ -201,6 +464,11 @@ export class GameManager {
   public dispose(): void {
     this.stop();
 
+    if (this.chunkManager) {
+      this.chunkManager.dispose();
+      this.chunkManager = null;
+    }
+
     if (this.environmentManager && this.scene) {
       this.environmentManager.dispose(this.scene);
       this.environmentManager = null;
@@ -220,6 +488,9 @@ export class GameManager {
       this.engine.dispose();
       this.engine = null;
     }
+
+    this.worldConfigManager = null;
+    this.proceduralGenerationEnabled = false;
 
     console.log('GameManager disposed');
   }
@@ -348,6 +619,17 @@ export class GameManager {
     const loadingElement = document.getElementById('loading');
     if (loadingElement) {
       loadingElement.style.display = 'none';
+    }
+  }
+
+  /**
+   * Update loading message
+   * Validates: Requirement 7.1
+   */
+  public updateLoadingMessage(message: string): void {
+    const loadingElement = document.getElementById('loading');
+    if (loadingElement) {
+      loadingElement.textContent = message;
     }
   }
 

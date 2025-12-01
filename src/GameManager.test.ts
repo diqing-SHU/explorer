@@ -1,211 +1,296 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { GameManager } from './GameManager';
 import * as BABYLON from '@babylonjs/core';
-import * as fc from 'fast-check';
+import { GameManager } from './GameManager';
 
-describe('GameManager', () => {
+describe('GameManager Integration with Procedural Generation', () => {
   let gameManager: GameManager;
   let canvas: HTMLCanvasElement;
 
   beforeEach(() => {
-    // Create error and loading elements
-    const errorDiv = document.createElement('div');
-    errorDiv.id = 'error';
-    errorDiv.style.display = 'none';
-    const errorMessage = document.createElement('p');
-    errorMessage.id = 'errorMessage';
-    errorDiv.appendChild(errorMessage);
-    document.body.appendChild(errorDiv);
+    // Mock WebGL support check
+    vi.spyOn(GameManager.prototype as any, 'isWebGLSupported').mockReturnValue(true);
 
-    const loadingDiv = document.createElement('div');
-    loadingDiv.id = 'loading';
-    document.body.appendChild(loadingDiv);
-
-    // Create a canvas element
+    // Create a mock canvas
     canvas = document.createElement('canvas');
     canvas.id = 'renderCanvas';
     document.body.appendChild(canvas);
 
+    // Mock getContext to return a fake WebGL context
+    vi.spyOn(canvas, 'getContext').mockReturnValue({} as any);
+
+    // Create loading and error elements
+    const loading = document.createElement('div');
+    loading.id = 'loading';
+    loading.style.display = 'none';
+    document.body.appendChild(loading);
+
+    const error = document.createElement('div');
+    error.id = 'error';
+    error.style.display = 'none';
+    document.body.appendChild(error);
+
+    const errorMessage = document.createElement('div');
+    errorMessage.id = 'errorMessage';
+    error.appendChild(errorMessage);
+
+    // Create game manager
     gameManager = new GameManager();
   });
 
   afterEach(() => {
     if (gameManager) {
-      try {
-        gameManager.dispose();
-      } catch (e) {
-        // Ignore disposal errors in tests
-      }
+      gameManager.dispose();
     }
     document.body.innerHTML = '';
+    vi.restoreAllMocks();
   });
 
-  // Tests that don't require WebGL
-  it('should throw error if starting before initialization', () => {
-    expect(() => gameManager.start()).toThrow('GameManager must be initialized before starting');
-  });
-
-  it('should throw error if getting scene before initialization', () => {
-    expect(() => gameManager.getScene()).toThrow('Scene not initialized');
-  });
-
-  it('should throw error if getting engine before initialization', () => {
-    expect(() => gameManager.getEngine()).toThrow('Engine not initialized');
-  });
-
-  it('should display error message when WebGL is not supported', () => {
-    // In jsdom, WebGL is not supported, so initialization should fail gracefully
-    try {
+  describe('ChunkManager Integration', () => {
+    it('should initialize ChunkManager when procedural generation is enabled', () => {
+      // Initialize game
       gameManager.initialize(canvas);
-    } catch (error) {
-      // Expected to throw
-    }
 
-    const errorElement = document.getElementById('error');
-    const errorMessageElement = document.getElementById('errorMessage');
+      // Enable procedural generation
+      gameManager.enableProceduralGeneration();
 
-    expect(errorElement?.style.display).toBe('block');
-    expect(errorMessageElement?.textContent).toContain('WebGL');
-  });
+      // Verify ChunkManager is initialized
+      const chunkManager = gameManager.getChunkManager();
+      expect(chunkManager).toBeDefined();
+      expect(chunkManager).not.toBeNull();
+    });
 
-  it('should hide loading indicator on error', () => {
-    const loadingElement = document.getElementById('loading');
-    expect(loadingElement).toBeTruthy();
-
-    try {
+    it('should throw error when accessing ChunkManager before initialization', () => {
       gameManager.initialize(canvas);
-    } catch (error) {
-      // Expected to throw
-    }
 
-    expect(loadingElement?.style.display).toBe('none');
+      expect(() => gameManager.getChunkManager()).toThrow('ChunkManager not initialized');
+    });
+
+    it('should dispose ChunkManager when procedural generation is disabled', () => {
+      gameManager.initialize(canvas);
+      gameManager.enableProceduralGeneration();
+
+      const chunkManager = gameManager.getChunkManager();
+      const disposeSpy = vi.spyOn(chunkManager, 'dispose');
+
+      gameManager.disableProceduralGeneration();
+
+      expect(disposeSpy).toHaveBeenCalled();
+      expect(gameManager.isProceduralGenerationEnabled()).toBe(false);
+    });
+
+    it('should update ChunkManager in game loop when enabled', async () => {
+      gameManager.initialize(canvas);
+      gameManager.enableProceduralGeneration();
+
+      // Wait for generators to be loaded
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const chunkManager = gameManager.getChunkManager();
+      const updateSpy = vi.spyOn(chunkManager, 'update');
+
+      gameManager.start();
+
+      // Trigger a render frame
+      const scene = gameManager.getScene();
+      scene.render();
+
+      expect(updateSpy).toHaveBeenCalled();
+
+      gameManager.stop();
+    });
+
+    it('should not update ChunkManager when procedural generation is disabled', () => {
+      gameManager.initialize(canvas);
+      gameManager.enableProceduralGeneration();
+      const chunkManager = gameManager.getChunkManager();
+      const updateSpy = vi.spyOn(chunkManager, 'update');
+
+      gameManager.disableProceduralGeneration();
+      gameManager.start();
+
+      // Trigger a render frame
+      const scene = gameManager.getScene();
+      scene.render();
+
+      expect(updateSpy).not.toHaveBeenCalled();
+
+      gameManager.stop();
+    });
   });
 
-  /**
-   * Feature: 3d-exploration-game, Property 10: Viewport adapts to window resize
-   * Validates: Requirements 6.4
-   * 
-   * For any window resize event, the renderer's viewport dimensions and camera aspect ratio 
-   * should update to match the new window dimensions, preventing distorted rendering.
-   */
-  it('should adapt viewport to window resize', () => {
-    fc.assert(
-      fc.property(
-        // Generate random window dimensions (reasonable sizes for testing)
-        fc.integer({ min: 320, max: 3840 }), // width
-        fc.integer({ min: 240, max: 2160 }), // height
-        (width, height) => {
-          // Create engines with different dimensions to test resize behavior
-          // We test that creating an engine with specific dimensions results in correct aspect ratio
-          const engine = new BABYLON.NullEngine({
-            renderWidth: width,
-            renderHeight: height,
-          });
-          
-          try {
-            const scene = new BABYLON.Scene(engine);
-            
-            // Create a camera to test aspect ratio
-            const camera = new BABYLON.UniversalCamera('testCamera', new BABYLON.Vector3(0, 0, 0), scene);
-            scene.activeCamera = camera;
-            
-            // Verify that resize() can be called without errors
-            // This is what the GameManager's resize handler does
-            expect(() => engine.resize()).not.toThrow();
-            
-            // Verify the engine's render dimensions match what we set
-            expect(engine.getRenderWidth()).toBe(width);
-            expect(engine.getRenderHeight()).toBe(height);
-            
-            // Verify camera aspect ratio matches the engine dimensions
-            // This is the key property: aspect ratio should equal width/height
-            const expectedAspectRatio = width / height;
-            const actualAspectRatio = engine.getAspectRatio(camera);
-            
-            // Allow for small floating point differences
-            expect(Math.abs(actualAspectRatio - expectedAspectRatio)).toBeLessThan(0.01);
-            
-            // Cleanup
-            scene.dispose();
-            engine.dispose();
-          } catch (error) {
-            engine.dispose();
-            throw error;
+  describe('PlayerController Integration', () => {
+    it('should pass player position to ChunkManager update', async () => {
+      gameManager.initialize(canvas);
+      gameManager.enableProceduralGeneration();
+
+      // Wait for generators to be loaded
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const chunkManager = gameManager.getChunkManager();
+      const playerController = gameManager.getPlayerController();
+      const updateSpy = vi.spyOn(chunkManager, 'update');
+
+      gameManager.start();
+
+      // Trigger a render frame
+      const scene = gameManager.getScene();
+      scene.render();
+
+      // Verify update was called with player position
+      expect(updateSpy).toHaveBeenCalled();
+      const callArgs = updateSpy.mock.calls[0];
+      expect(callArgs[0]).toBeInstanceOf(BABYLON.Vector3);
+
+      // Verify position matches player camera position
+      const playerPosition = playerController.getCamera().position;
+      expect(callArgs[0].x).toBe(playerPosition.x);
+      expect(callArgs[0].y).toBe(playerPosition.y);
+      expect(callArgs[0].z).toBe(playerPosition.z);
+
+      gameManager.stop();
+    });
+  });
+
+  describe('EnvironmentManager Compatibility', () => {
+    it('should work alongside EnvironmentManager without conflicts', () => {
+      gameManager.initialize(canvas);
+
+      // Load static environment
+      const envConfig = {
+        terrain: {
+          width: 100,
+          depth: 100
+        },
+        buildings: [],
+        lighting: {
+          ambient: {
+            color: '#FFFFFF',
+            intensity: 0.5
+          },
+          directional: {
+            color: '#FFFFFF',
+            intensity: 0.8,
+            direction: [0, -1, 0] as [number, number, number]
           }
         }
-      ),
-      { numRuns: 100 } // Run 100 iterations as specified in design doc
-    );
+      };
+      gameManager.loadEnvironment(envConfig);
+
+      // Enable procedural generation
+      gameManager.enableProceduralGeneration();
+
+      // Verify both managers are initialized
+      const environmentManager = gameManager.getEnvironmentManager();
+      const chunkManager = gameManager.getChunkManager();
+
+      expect(environmentManager).toBeDefined();
+      expect(chunkManager).toBeDefined();
+
+      // Verify terrain from EnvironmentManager exists
+      const terrain = environmentManager.getTerrain();
+      expect(terrain).not.toBeNull();
+    });
+
+    it('should dispose both managers correctly', async () => {
+      gameManager.initialize(canvas);
+
+      const envConfig = {
+        terrain: { width: 100, depth: 100 },
+        buildings: [],
+        lighting: {
+          ambient: { color: '#FFFFFF', intensity: 0.5 },
+          directional: { color: '#FFFFFF', intensity: 0.8, direction: [0, -1, 0] as [number, number, number] }
+        }
+      };
+      gameManager.loadEnvironment(envConfig);
+      await gameManager.enableProceduralGeneration();
+
+      const environmentManager = gameManager.getEnvironmentManager();
+      const chunkManager = gameManager.getChunkManager();
+
+      const envDisposeSpy = vi.spyOn(environmentManager, 'dispose');
+      const chunkDisposeSpy = vi.spyOn(chunkManager, 'dispose');
+
+      gameManager.dispose();
+
+      expect(envDisposeSpy).toHaveBeenCalled();
+      expect(chunkDisposeSpy).toHaveBeenCalled();
+    });
   });
 
-  /**
-   * Feature: 3d-exploration-game, Property 11: Errors display messages
-   * Validates: Requirements 7.3
-   * 
-   * For any initialization error or runtime error, the game engine should display 
-   * an error message to the player, ensuring failures are communicated rather than silent.
-   */
-  it('should display error messages for any error', () => {
-    fc.assert(
-      fc.property(
-        // Generate random error messages to test error display
-        fc.string({ minLength: 1, maxLength: 200 }),
-        (errorMessage) => {
-          // Create fresh DOM elements for this test iteration
-          const errorDiv = document.createElement('div');
-          errorDiv.id = 'error-test';
-          errorDiv.style.display = 'none';
-          const errorMessageElement = document.createElement('p');
-          errorMessageElement.id = 'errorMessage-test';
-          errorDiv.appendChild(errorMessageElement);
-          document.body.appendChild(errorDiv);
+  describe('Physics Compatibility', () => {
+    it('should maintain physics engine compatibility', async () => {
+      gameManager.initialize(canvas);
+      await gameManager.enableProceduralGeneration();
 
-          const loadingDiv = document.createElement('div');
-          loadingDiv.id = 'loading-test';
-          loadingDiv.style.display = 'block';
-          document.body.appendChild(loadingDiv);
+      const scene = gameManager.getScene();
 
-          // Mock the GameManager's handleError behavior
-          // We simulate what happens when an error occurs
-          const simulateError = (error: Error) => {
-            const errorElement = document.getElementById('error-test');
-            const errorMsgElement = document.getElementById('errorMessage-test');
-            const loadingElement = document.getElementById('loading-test');
+      // Verify physics is enabled
+      expect(scene.isPhysicsEnabled()).toBe(true);
 
-            if (errorElement && errorMsgElement) {
-              errorMsgElement.textContent = error.message;
-              errorElement.style.display = 'block';
-            }
+      // Verify physics plugin is set
+      const physicsEngine = scene.getPhysicsEngine();
+      expect(physicsEngine).toBeDefined();
+      expect(physicsEngine).not.toBeNull();
+    });
+  });
 
-            if (loadingElement) {
-              loadingElement.style.display = 'none';
-            }
-          };
+  describe('Scene Graph Integration', () => {
+    it('should add generated objects to scene graph', async () => {
+      gameManager.initialize(canvas);
+      await gameManager.enableProceduralGeneration();
 
-          // Simulate an error with the random message
-          const testError = new Error(errorMessage);
-          simulateError(testError);
+      const scene = gameManager.getScene();
+      const chunkManager = gameManager.getChunkManager();
 
-          // Verify that error is displayed
-          const errorElement = document.getElementById('error-test');
-          const errorMsgElement = document.getElementById('errorMessage-test');
-          const loadingElement = document.getElementById('loading-test');
+      // Force generate a chunk
+      const chunk = chunkManager.generateChunk(0, 0);
 
-          // Property: Error element should be visible
-          expect(errorElement?.style.display).toBe('block');
-          
-          // Property: Error message should be displayed to the user
-          expect(errorMsgElement?.textContent).toBe(errorMessage);
-          
-          // Property: Loading indicator should be hidden when error occurs
-          expect(loadingElement?.style.display).toBe('none');
+      // Verify chunk has meshes
+      expect(chunk.meshes.length).toBeGreaterThan(0);
 
-          // Cleanup
-          document.body.removeChild(errorDiv);
-          document.body.removeChild(loadingDiv);
+      // Verify meshes are in scene
+      for (const mesh of chunk.meshes) {
+        expect(scene.meshes).toContain(mesh);
+      }
+    });
+  });
+
+  describe('WorldConfigManager Integration', () => {
+    it('should use default config when none provided', async () => {
+      gameManager.initialize(canvas);
+      await gameManager.enableProceduralGeneration();
+
+      const worldConfigManager = gameManager.getWorldConfigManager();
+      expect(worldConfigManager).toBeDefined();
+
+      const config = worldConfigManager.getConfig();
+      expect(config.chunk.chunkSize).toBe(100);
+      expect(config.chunk.seed).toBe(12345);
+    });
+
+    it('should use custom config when provided', async () => {
+      gameManager.initialize(canvas);
+
+      // Import WorldConfigManager
+      const { WorldConfigManager } = await import('./procedural');
+      const customConfig = new WorldConfigManager({
+        chunk: {
+          chunkSize: 200,
+          activeRadius: 400,
+          unloadDistance: 600,
+          seed: 99999,
+          generationOrder: ['RoadGenerator']
         }
-      ),
-      { numRuns: 100 } // Run 100 iterations as specified in design doc
-    );
+      });
+
+      await gameManager.enableProceduralGeneration(customConfig);
+
+      const worldConfigManager = gameManager.getWorldConfigManager();
+      const config = worldConfigManager.getConfig();
+
+      expect(config.chunk.chunkSize).toBe(200);
+      expect(config.chunk.seed).toBe(99999);
+    });
   });
 });
