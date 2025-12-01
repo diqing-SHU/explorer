@@ -47,6 +47,8 @@ export {
   MinimumSpacingRule
 } from './PlacementRuleEngine';
 export type { BoundingBox } from './PlacementRuleEngine';
+export { MeshInstanceManager } from './MeshInstanceManager';
+export type { InstanceData } from './MeshInstanceManager';
 export {
   worldToChunk,
   chunkToWorld,

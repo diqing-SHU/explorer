@@ -256,7 +256,7 @@
   - **Property 21: Configuration parameter effects**
   - **Validates: Requirements 7.2, 7.3, 7.4**
 
-- [ ] 17. Implement performance optimizations
+- [x] 17. Implement performance optimizations
   - Add generation time measurement and logging
   - Implement chunk generation prioritization by distance
   - Add resource disposal on chunk unload (meshes, imposters)
@@ -264,15 +264,15 @@
   - Implement mesh instancing for repeated objects
   - _Requirements: 8.1, 8.2, 8.3, 8.5_
 
-- [ ]* 17.1 Write property test for generation performance
+- [x] 17.1 Write property test for generation performance
   - **Property 22: Generation performance**
   - **Validates: Requirements 8.1**
 
-- [ ]* 17.2 Write property test for generation prioritization
+- [x] 17.2 Write property test for generation prioritization
   - **Property 23: Generation prioritization**
   - **Validates: Requirements 8.2**
 
-- [ ]* 17.3 Write property test for resource cleanup
+- [x] 17.3 Write property test for resource cleanup
   - **Property 24: Resource cleanup on unload**
   - **Validates: Requirements 8.3**
 

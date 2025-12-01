@@ -8,6 +8,7 @@ import { Chunk } from './ChunkTypes';
 import { worldToChunk, getChunkKey, parseChunkKey } from './SpatialUtils';
 import { Generator, GenerationContext, PlacementRuleEngine } from './Generator';
 import { SeededRandom } from './SeededRandom';
+import { MeshInstanceManager } from './MeshInstanceManager';
 
 /**
  * Configuration for ChunkManager
@@ -31,10 +32,23 @@ export class ChunkManager {
   private lastPlayerChunk: { x: number; z: number } | null = null;
   private generators: Map<string, Generator> = new Map();
   private placementEngine: PlacementRuleEngine | null = null;
+  
+  // Performance tracking
+  // Validates: Requirement 8.1
+  private generationTimes: number[] = [];
+  private readonly MAX_GENERATION_TIME_SAMPLES = 100;
+  
+  // Generation queue for prioritization
+  // Validates: Requirement 8.2
+  private generationQueue: Array<{ x: number; z: number; distance: number }> = [];
+  
+  // Mesh instancing for performance
+  // Validates: Requirement 8.5
+  private instanceManager: MeshInstanceManager | null = null;
 
   /**
    * Initialize ChunkManager with scene and configuration
-   * Validates: Requirements 1.1, 1.4
+   * Validates: Requirements 1.1, 1.4, 8.5
    * 
    * @param scene - Babylon.js scene to add generated objects to
    * @param config - Configuration for chunk management
@@ -45,6 +59,10 @@ export class ChunkManager {
     this.loadedChunks.clear();
     this.lastPlayerChunk = null;
     this.generators.clear();
+    
+    // Initialize mesh instance manager
+    // Validates: Requirement 8.5
+    this.instanceManager = new MeshInstanceManager(scene);
 
     console.log('ChunkManager initialized with config:', config);
   }
@@ -107,6 +125,16 @@ export class ChunkManager {
   }
 
   /**
+   * Get the mesh instance manager
+   * Validates: Requirement 8.5
+   * 
+   * @returns Mesh instance manager or null if not initialized
+   */
+  public getInstanceManager(): MeshInstanceManager | null {
+    return this.instanceManager;
+  }
+
+  /**
    * Update based on player position (called each frame)
    * Checks if new chunks need to be loaded or distant chunks unloaded
    * Validates: Requirements 1.1, 1.4, 1.5, 12.3
@@ -144,7 +172,7 @@ export class ChunkManager {
 
   /**
    * Load chunks within active radius of player
-   * Validates: Requirement 1.1
+   * Validates: Requirements 1.1, 8.2
    * 
    * @param playerPosition - Actual player world position
    * @param centerX - Center chunk X coordinate
@@ -158,7 +186,11 @@ export class ChunkManager {
     // Calculate how many chunks to load in each direction
     const chunkRadius = Math.ceil(this.config.activeRadius / this.config.chunkSize);
 
-    // Generate chunks in a square around the player
+    // Clear generation queue
+    this.generationQueue = [];
+
+    // Identify chunks that need generation and calculate their distances
+    // Validates: Requirement 8.2 - prioritization by distance
     for (let x = centerX - chunkRadius; x <= centerX + chunkRadius; x++) {
       for (let z = centerZ - chunkRadius; z <= centerZ + chunkRadius; z++) {
         const key = getChunkKey(x, z);
@@ -178,11 +210,23 @@ export class ChunkManager {
         const distance = Math.sqrt(dx * dx + dz * dz);
 
         if (distance <= this.config.activeRadius) {
-          // Generate and load the chunk
-          this.generateChunk(x, z);
+          // Add to generation queue with distance
+          this.generationQueue.push({ x, z, distance });
         }
       }
     }
+
+    // Sort queue by distance (closest first)
+    // Validates: Requirement 8.2 - prioritize chunks closest to player
+    this.generationQueue.sort((a, b) => a.distance - b.distance);
+
+    // Generate chunks in priority order
+    for (const item of this.generationQueue) {
+      this.generateChunk(item.x, item.z);
+    }
+
+    // Clear queue after processing
+    this.generationQueue = [];
   }
 
   /**
@@ -224,7 +268,7 @@ export class ChunkManager {
   /**
    * Generate a specific chunk
    * Creates chunk data structure and initializes empty arrays
-   * Validates: Requirements 1.1, 1.2
+   * Validates: Requirements 1.1, 1.2, 8.1
    * 
    * @param chunkX - Chunk X coordinate
    * @param chunkZ - Chunk Z coordinate
@@ -241,6 +285,10 @@ export class ChunkManager {
     if (this.loadedChunks.has(key)) {
       return this.loadedChunks.get(key)!;
     }
+
+    // Start timing generation
+    // Validates: Requirement 8.1 - generation time measurement
+    const startTime = performance.now();
 
     // Calculate world position (corner of chunk)
     const worldX = chunkX * this.config.chunkSize;
@@ -274,7 +322,26 @@ export class ChunkManager {
     // Validates: Requirement 10.5
     this.executeGenerators(chunk);
 
-    console.log(`Generated chunk at (${chunkX}, ${chunkZ}) with seed ${chunkSeed}`);
+    // End timing and log
+    // Validates: Requirement 8.1 - generation time logging
+    const endTime = performance.now();
+    const generationTime = endTime - startTime;
+    
+    // Track generation time
+    this.generationTimes.push(generationTime);
+    if (this.generationTimes.length > this.MAX_GENERATION_TIME_SAMPLES) {
+      this.generationTimes.shift();
+    }
+
+    // Calculate average generation time
+    const avgTime = this.generationTimes.reduce((a, b) => a + b, 0) / this.generationTimes.length;
+
+    console.log(`Generated chunk at (${chunkX}, ${chunkZ}) in ${generationTime.toFixed(2)}ms (avg: ${avgTime.toFixed(2)}ms)`);
+
+    // Warn if generation is slow
+    if (generationTime > 100) {
+      console.warn(`Chunk generation took ${generationTime.toFixed(2)}ms, exceeding 100ms target`);
+    }
 
     return chunk;
   }
@@ -467,7 +534,48 @@ export class ChunkManager {
   }
 
   /**
+   * Get performance statistics
+   * Validates: Requirement 8.1
+   * 
+   * @returns Performance statistics object
+   */
+  public getPerformanceStats(): {
+    averageGenerationTime: number;
+    minGenerationTime: number;
+    maxGenerationTime: number;
+    lastGenerationTime: number;
+    totalChunksGenerated: number;
+    loadedChunksCount: number;
+  } {
+    if (this.generationTimes.length === 0) {
+      return {
+        averageGenerationTime: 0,
+        minGenerationTime: 0,
+        maxGenerationTime: 0,
+        lastGenerationTime: 0,
+        totalChunksGenerated: 0,
+        loadedChunksCount: this.loadedChunks.size
+      };
+    }
+
+    const avgTime = this.generationTimes.reduce((a, b) => a + b, 0) / this.generationTimes.length;
+    const minTime = Math.min(...this.generationTimes);
+    const maxTime = Math.max(...this.generationTimes);
+    const lastTime = this.generationTimes[this.generationTimes.length - 1];
+
+    return {
+      averageGenerationTime: avgTime,
+      minGenerationTime: minTime,
+      maxGenerationTime: maxTime,
+      lastGenerationTime: lastTime,
+      totalChunksGenerated: this.generationTimes.length,
+      loadedChunksCount: this.loadedChunks.size
+    };
+  }
+
+  /**
    * Cleanup all resources
+   * Validates: Requirement 8.3
    */
   public dispose(): void {
     // Unload all chunks
@@ -477,10 +585,18 @@ export class ChunkManager {
       this.unloadChunk(coords.x, coords.z);
     }
 
+    // Dispose instance manager
+    if (this.instanceManager) {
+      this.instanceManager.dispose();
+      this.instanceManager = null;
+    }
+
     this.loadedChunks.clear();
     this.scene = null;
     this.config = null;
     this.lastPlayerChunk = null;
+    this.generationTimes = [];
+    this.generationQueue = [];
 
     console.log('ChunkManager disposed');
   }

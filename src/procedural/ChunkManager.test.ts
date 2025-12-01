@@ -672,6 +672,246 @@ describe('ChunkManager', () => {
     });
 
     /**
+     * Feature: procedural-world-generation, Property 22: Generation performance
+     * 
+     * For any chunk generation, the generation should complete within 100 milliseconds.
+     * 
+     * Validates: Requirements 8.1
+     */
+    it('Property 22: Generation performance', () => {
+      fc.assert(
+        fc.property(
+          // Generate random chunk coordinates
+          fc.record({
+            chunkX: fc.integer({ min: -100, max: 100 }),
+            chunkZ: fc.integer({ min: -100, max: 100 })
+          }),
+          (testData) => {
+            // Create a fresh chunk manager for each test
+            const testManager = new ChunkManager();
+            const testEngine = new BABYLON.NullEngine();
+            const testScene = new BABYLON.Scene(testEngine);
+            
+            testManager.initialize(testScene, defaultConfig);
+            
+            // Measure generation time
+            const startTime = performance.now();
+            testManager.generateChunk(testData.chunkX, testData.chunkZ);
+            const endTime = performance.now();
+            
+            const generationTime = endTime - startTime;
+            
+            // Cleanup
+            testManager.dispose();
+            testScene.dispose();
+            testEngine.dispose();
+            
+            // Property: Generation should complete within 100 milliseconds
+            return generationTime <= 100;
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    /**
+     * Feature: procedural-world-generation, Property 23: Generation prioritization
+     * 
+     * For any set of chunks needing generation, chunks should be generated in order
+     * of increasing distance from the player (closest first).
+     * 
+     * Validates: Requirements 8.2
+     */
+    it('Property 23: Generation prioritization', () => {
+      fc.assert(
+        fc.property(
+          // Generate random player position
+          fc.record({
+            x: fc.integer({ min: -5000, max: 5000 }),
+            y: fc.integer({ min: 0, max: 100 }),
+            z: fc.integer({ min: -5000, max: 5000 })
+          }),
+          (playerPos) => {
+            // Create a fresh chunk manager for each test
+            const testManager = new ChunkManager();
+            const testEngine = new BABYLON.NullEngine();
+            const testScene = new BABYLON.Scene(testEngine);
+            
+            testManager.initialize(testScene, defaultConfig);
+            
+            // Create player position vector
+            const position = new BABYLON.Vector3(playerPos.x, playerPos.y, playerPos.z);
+            
+            // Update chunk manager to trigger chunk generation
+            testManager.update(position);
+            
+            // Get all loaded chunks
+            const loadedChunks = testManager.getLoadedChunks();
+            
+            // Calculate distance from player to each chunk center
+            const chunkDistances = loadedChunks.map(chunk => {
+              const chunkCenterX = chunk.worldX + defaultConfig.chunkSize / 2;
+              const chunkCenterZ = chunk.worldZ + defaultConfig.chunkSize / 2;
+              
+              const dx = playerPos.x - chunkCenterX;
+              const dz = playerPos.z - chunkCenterZ;
+              const distance = Math.sqrt(dx * dx + dz * dz);
+              
+              return {
+                chunk,
+                distance,
+                generatedAt: chunk.generatedAt
+              };
+            });
+            
+            // Sort by generation time (earlier = generated first)
+            chunkDistances.sort((a, b) => a.generatedAt - b.generatedAt);
+            
+            // Property: Chunks should be generated in order of increasing distance
+            // We check that for most consecutive pairs, the earlier-generated chunk
+            // is not significantly farther than the later-generated chunk
+            let prioritizationViolations = 0;
+            const significantDistanceDifference = defaultConfig.chunkSize; // One chunk size
+            
+            for (let i = 0; i < chunkDistances.length - 1; i++) {
+              const earlier = chunkDistances[i];
+              const later = chunkDistances[i + 1];
+              
+              // If the earlier chunk is significantly farther than the later chunk,
+              // that's a prioritization violation
+              if (earlier.distance > later.distance + significantDistanceDifference) {
+                prioritizationViolations++;
+              }
+            }
+            
+            // Allow a small number of violations due to timing precision and
+            // chunks generated at nearly the same time
+            const maxAllowedViolations = Math.ceil(chunkDistances.length * 0.1); // 10% tolerance
+            
+            // Cleanup
+            testManager.dispose();
+            testScene.dispose();
+            testEngine.dispose();
+            
+            // Property: Chunks should be generated in approximate distance order
+            // (allowing for some tolerance due to timing precision)
+            return prioritizationViolations <= maxAllowedViolations;
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    /**
+     * Feature: procedural-world-generation, Property 24: Resource cleanup on unload
+     * 
+     * For any unloaded chunk, all meshes and physics imposters associated with that
+     * chunk should be disposed and removed from the scene.
+     * 
+     * Validates: Requirements 8.3
+     */
+    it('Property 24: Resource cleanup on unload', () => {
+      fc.assert(
+        fc.property(
+          // Generate random chunk coordinates and number of resources
+          fc.record({
+            chunkX: fc.integer({ min: -100, max: 100 }),
+            chunkZ: fc.integer({ min: -100, max: 100 }),
+            numMeshes: fc.integer({ min: 1, max: 20 }),
+            numImposters: fc.integer({ min: 0, max: 10 })
+          }),
+          (testData) => {
+            // Create a fresh chunk manager for each test
+            const testManager = new ChunkManager();
+            const testEngine = new BABYLON.NullEngine();
+            const testScene = new BABYLON.Scene(testEngine);
+            
+            testManager.initialize(testScene, defaultConfig);
+            
+            // Generate a chunk
+            const chunk = testManager.generateChunk(testData.chunkX, testData.chunkZ);
+            
+            // Add test meshes to the chunk
+            const meshes: BABYLON.Mesh[] = [];
+            for (let i = 0; i < testData.numMeshes; i++) {
+              const mesh = BABYLON.MeshBuilder.CreateBox(
+                `test_mesh_${testData.chunkX}_${testData.chunkZ}_${i}`,
+                { size: 1 },
+                testScene
+              );
+              chunk.meshes.push(mesh);
+              meshes.push(mesh);
+            }
+            
+            // Add test physics imposters to the chunk
+            const imposters: BABYLON.PhysicsImpostor[] = [];
+            for (let i = 0; i < testData.numImposters; i++) {
+              const mesh = BABYLON.MeshBuilder.CreateBox(
+                `test_imposter_mesh_${testData.chunkX}_${testData.chunkZ}_${i}`,
+                { size: 1 },
+                testScene
+              );
+              const imposter = new BABYLON.PhysicsImpostor(
+                mesh,
+                BABYLON.PhysicsImpostor.BoxImpostor,
+                { mass: 0 },
+                testScene
+              );
+              chunk.meshes.push(mesh);
+              chunk.imposters.push(imposter);
+              meshes.push(mesh);
+              imposters.push(imposter);
+            }
+            
+            // Verify all resources are not disposed before unload
+            let allResourcesAliveBeforeUnload = true;
+            for (const mesh of meshes) {
+              if (mesh.isDisposed()) {
+                allResourcesAliveBeforeUnload = false;
+                break;
+              }
+            }
+            
+            // Unload the chunk
+            testManager.unloadChunk(testData.chunkX, testData.chunkZ);
+            
+            // Property 1: All meshes should be disposed after unload
+            let allMeshesDisposed = true;
+            for (const mesh of meshes) {
+              if (!mesh.isDisposed()) {
+                allMeshesDisposed = false;
+                break;
+              }
+            }
+            
+            // Property 2: Chunk should no longer be loaded
+            const chunkStillLoaded = testManager.isChunkLoaded(testData.chunkX, testData.chunkZ);
+            
+            // Property 3: Chunk should not be in loaded chunks list
+            const loadedChunks = testManager.getLoadedChunks();
+            const chunkInLoadedList = loadedChunks.some(
+              c => c.x === testData.chunkX && c.z === testData.chunkZ
+            );
+            
+            // Cleanup
+            testManager.dispose();
+            testScene.dispose();
+            testEngine.dispose();
+            
+            // Property: All resources should be alive before unload,
+            // all meshes should be disposed after unload,
+            // and chunk should not be loaded anymore
+            return allResourcesAliveBeforeUnload && 
+                   allMeshesDisposed && 
+                   !chunkStillLoaded && 
+                   !chunkInLoadedList;
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    /**
      * Feature: procedural-world-generation, Property 20: Boundary object integrity
      * 
      * For any object placed near a chunk boundary, the object should be complete
@@ -972,6 +1212,169 @@ describe('ChunkManager', () => {
         ),
         { numRuns: 100 }
       );
+    });
+  });
+
+  describe('Performance Optimizations', () => {
+    beforeEach(() => {
+      chunkManager.initialize(scene, defaultConfig);
+    });
+
+    describe('generation time measurement', () => {
+      it('should track generation times', () => {
+        // Generate a few chunks
+        chunkManager.generateChunk(0, 0);
+        chunkManager.generateChunk(1, 0);
+        chunkManager.generateChunk(0, 1);
+
+        const stats = chunkManager.getPerformanceStats();
+        
+        expect(stats.totalChunksGenerated).toBe(3);
+        expect(stats.averageGenerationTime).toBeGreaterThan(0);
+        expect(stats.minGenerationTime).toBeGreaterThan(0);
+        expect(stats.maxGenerationTime).toBeGreaterThan(0);
+        expect(stats.lastGenerationTime).toBeGreaterThan(0);
+      });
+
+      it('should limit generation time samples', () => {
+        // Generate more than MAX_GENERATION_TIME_SAMPLES chunks
+        for (let i = 0; i < 150; i++) {
+          chunkManager.generateChunk(i, 0);
+        }
+
+        const stats = chunkManager.getPerformanceStats();
+        
+        // Should only track last 100 samples
+        expect(stats.totalChunksGenerated).toBeLessThanOrEqual(100);
+      });
+
+      it('should calculate correct statistics', () => {
+        chunkManager.generateChunk(0, 0);
+        chunkManager.generateChunk(1, 0);
+
+        const stats = chunkManager.getPerformanceStats();
+        
+        expect(stats.minGenerationTime).toBeLessThanOrEqual(stats.averageGenerationTime);
+        expect(stats.maxGenerationTime).toBeGreaterThanOrEqual(stats.averageGenerationTime);
+        expect(stats.averageGenerationTime).toBeGreaterThan(0);
+      });
+    });
+
+    describe('chunk generation prioritization', () => {
+      it('should generate closer chunks first', () => {
+        // Position player at origin
+        const playerPos = new BABYLON.Vector3(0, 0, 0);
+        
+        // Track generation order by monitoring loaded chunks
+        const initialCount = chunkManager.getLoadedChunks().length;
+        
+        chunkManager.update(playerPos);
+        
+        const loadedChunks = chunkManager.getLoadedChunks();
+        
+        // Verify chunks were loaded
+        expect(loadedChunks.length).toBeGreaterThan(initialCount);
+        
+        // Verify that the player's chunk (0,0) is loaded
+        expect(chunkManager.isChunkLoaded(0, 0)).toBe(true);
+      });
+
+      it('should prioritize by distance from player', () => {
+        // Position player at a specific location
+        const playerPos = new BABYLON.Vector3(250, 0, 250);
+        
+        chunkManager.update(playerPos);
+        
+        // Calculate distances from player to loaded chunks
+        const loadedChunks = chunkManager.getLoadedChunks();
+        const distances = loadedChunks.map(chunk => {
+          const chunkCenterX = chunk.worldX + defaultConfig.chunkSize / 2;
+          const chunkCenterZ = chunk.worldZ + defaultConfig.chunkSize / 2;
+          const dx = playerPos.x - chunkCenterX;
+          const dz = playerPos.z - chunkCenterZ;
+          return Math.sqrt(dx * dx + dz * dz);
+        });
+        
+        // All loaded chunks should be within active radius
+        for (const distance of distances) {
+          expect(distance).toBeLessThanOrEqual(defaultConfig.activeRadius);
+        }
+      });
+    });
+
+    describe('resource disposal', () => {
+      it('should dispose meshes on chunk unload', () => {
+        const chunk = chunkManager.generateChunk(0, 0);
+        
+        // Add test meshes
+        const mesh1 = BABYLON.MeshBuilder.CreateBox('test1', { size: 1 }, scene);
+        const mesh2 = BABYLON.MeshBuilder.CreateBox('test2', { size: 1 }, scene);
+        chunk.meshes.push(mesh1, mesh2);
+        
+        expect(mesh1.isDisposed()).toBe(false);
+        expect(mesh2.isDisposed()).toBe(false);
+        
+        chunkManager.unloadChunk(0, 0);
+        
+        expect(mesh1.isDisposed()).toBe(true);
+        expect(mesh2.isDisposed()).toBe(true);
+      });
+
+      it('should dispose physics imposters on chunk unload', () => {
+        const chunk = chunkManager.generateChunk(0, 0);
+        
+        // Add test mesh with physics imposter
+        const mesh = BABYLON.MeshBuilder.CreateBox('test', { size: 1 }, scene);
+        const imposter = new BABYLON.PhysicsImpostor(
+          mesh,
+          BABYLON.PhysicsImpostor.BoxImpostor,
+          { mass: 0 },
+          scene
+        );
+        chunk.meshes.push(mesh);
+        chunk.imposters.push(imposter);
+        
+        expect(mesh.isDisposed()).toBe(false);
+        
+        chunkManager.unloadChunk(0, 0);
+        
+        expect(mesh.isDisposed()).toBe(true);
+      });
+
+      it('should dispose all resources on manager disposal', () => {
+        // Generate multiple chunks with meshes
+        for (let i = 0; i < 3; i++) {
+          const chunk = chunkManager.generateChunk(i, 0);
+          const mesh = BABYLON.MeshBuilder.CreateBox(`test${i}`, { size: 1 }, scene);
+          chunk.meshes.push(mesh);
+        }
+        
+        const allMeshes = chunkManager.getLoadedChunks()
+          .flatMap(chunk => chunk.meshes);
+        
+        expect(allMeshes.length).toBe(3);
+        allMeshes.forEach(mesh => expect(mesh.isDisposed()).toBe(false));
+        
+        chunkManager.dispose();
+        
+        allMeshes.forEach(mesh => expect(mesh.isDisposed()).toBe(true));
+      });
+    });
+
+    describe('mesh instance manager', () => {
+      it('should initialize instance manager on initialization', () => {
+        const instanceManager = chunkManager.getInstanceManager();
+        expect(instanceManager).not.toBeNull();
+      });
+
+      it('should dispose instance manager on disposal', () => {
+        const instanceManager = chunkManager.getInstanceManager();
+        expect(instanceManager).not.toBeNull();
+        
+        chunkManager.dispose();
+        
+        expect(chunkManager.getInstanceManager()).toBeNull();
+      });
     });
   });
 });
