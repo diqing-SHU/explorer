@@ -68,3 +68,14 @@ export {
   normalizeAngle,
   SpatialHash
 } from './SpatialUtils';
+export {
+  Logger,
+  LogLevel,
+  ConfigurationError,
+  GenerationError,
+  ValidationError,
+  ResourceError,
+  GracefulDegradation,
+  Validator,
+  PerformanceMonitor
+} from './ErrorHandling';

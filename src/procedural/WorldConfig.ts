@@ -482,22 +482,52 @@ export class WorldConfigManager {
   /**
    * Load configuration from JSON
    * Validates: Requirement 7.4
+   * @throws Error if JSON is invalid or configuration fails validation
    */
   public static fromJSON(json: string): WorldConfigManager {
+    if (!json || typeof json !== 'string') {
+      throw new Error('WorldConfigManager.fromJSON: json must be a non-empty string');
+    }
+
     try {
       const parsed = JSON.parse(json);
-      return new WorldConfigManager(parsed);
+      
+      if (!parsed || typeof parsed !== 'object') {
+        throw new Error('WorldConfigManager.fromJSON: parsed JSON must be an object');
+      }
+
+      const manager = new WorldConfigManager(parsed);
+      
+      // Validate the loaded configuration
+      const validation = manager.validateConfig(parsed);
+      if (!validation.valid) {
+        throw new Error(`WorldConfigManager.fromJSON: Invalid configuration - ${validation.errors.join(', ')}`);
+      }
+
+      if (validation.warnings.length > 0) {
+        console.warn('WorldConfigManager.fromJSON: Configuration warnings:', validation.warnings);
+      }
+
+      return manager;
     } catch (error) {
-      throw new Error(`Failed to parse configuration JSON: ${error}`);
+      if (error instanceof SyntaxError) {
+        throw new Error(`WorldConfigManager.fromJSON: Invalid JSON syntax - ${error.message}`);
+      }
+      throw new Error(`WorldConfigManager.fromJSON: Failed to parse configuration - ${error}`);
     }
   }
   
   /**
    * Export configuration to JSON
    * Validates: Requirement 7.4
+   * @throws Error if serialization fails
    */
   public toJSON(): string {
-    return JSON.stringify(this.config, null, 2);
+    try {
+      return JSON.stringify(this.config, null, 2);
+    } catch (error) {
+      throw new Error(`WorldConfigManager.toJSON: Failed to serialize configuration - ${error}`);
+    }
   }
   
   /**

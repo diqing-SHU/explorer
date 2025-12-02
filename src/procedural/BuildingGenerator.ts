@@ -112,20 +112,31 @@ export class BuildingGenerator extends BaseGenerator {
   /**
    * Generate buildings for chunk
    * Validates: Requirements 5.1, 5.2, 5.3, 5.5, 10.1
+   * @throws Error if generation fails critically
    */
   public generate(chunk: Chunk, context: GenerationContext): GeneratedObject[] {
+    if (!chunk || !context || !context.scene) {
+      throw new Error('BuildingGenerator.generate: Invalid chunk or context');
+    }
+
     const objects: GeneratedObject[] = [];
     const { rng, seed } = context;
     
-    // Create noise generator for variation (Requirement 5.2)
-    const noiseGen = new NoiseGenerator(seed);
-    
-    // Generate building positions using Poisson disc sampling for natural spacing
-    const positions = this.generateBuildingPositions(chunk, context);
-    
-    // Create buildings at each position
-    for (let i = 0; i < positions.length; i++) {
-      const pos = positions[i];
+    try {
+      // Create noise generator for variation (Requirement 5.2)
+      const noiseGen = new NoiseGenerator(seed);
+      
+      // Generate building positions using Poisson disc sampling for natural spacing
+      const positions = this.generateBuildingPositions(chunk, context);
+      
+      if (positions.length === 0) {
+        console.log(`BuildingGenerator.generate: No valid building positions found for chunk (${chunk.x}, ${chunk.z})`);
+        return [];
+      }
+      
+      // Create buildings at each position
+      for (let i = 0; i < positions.length; i++) {
+        const pos = positions[i];
       
       // Use noise for size variation (Requirement 5.2)
       const noiseX = pos.x / 50;
@@ -180,19 +191,25 @@ export class BuildingGenerator extends BaseGenerator {
       chunk.meshes.push(mesh);
       chunk.imposters.push(imposter);
       
-      // Create generated object
-      objects.push({
-        type: 'building',
-        position: pos,
-        rotation,
-        scale: finalDimensions,
-        mesh,
-        imposter,
-        metadata: { building }
-      });
+        // Create generated object
+        objects.push({
+          type: 'building',
+          position: pos,
+          rotation,
+          scale: finalDimensions,
+          mesh,
+          imposter,
+          metadata: { building }
+        });
+      }
+      
+      return objects;
+    } catch (error) {
+      console.error(`BuildingGenerator.generate: Failed to generate buildings for chunk (${chunk.x}, ${chunk.z}):`, error);
+      // Buildings are non-critical, return partial results
+      console.warn(`BuildingGenerator.generate: Returning ${objects.length} partially generated buildings`);
+      return objects;
     }
-    
-    return objects;
   }
 
   /**

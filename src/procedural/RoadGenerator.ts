@@ -74,50 +74,65 @@ export class RoadGenerator extends BaseGenerator {
   /**
    * Generate road network for chunk
    * Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5
+   * @throws Error if generation fails critically
    */
   public generate(chunk: Chunk, context: GenerationContext): GeneratedObject[] {
-    const segments: RoadSegment[] = [];
-    const intersections: Intersection[] = [];
+    if (!chunk || !context || !context.scene) {
+      throw new Error('RoadGenerator.generate: Invalid chunk or context');
+    }
 
-    // Generate grid-based roads
-    // Main roads run along chunk boundaries for seamless connection (Requirement 2.4)
-    this.generateGridRoads(chunk, context, segments);
+    try {
+      const segments: RoadSegment[] = [];
+      const intersections: Intersection[] = [];
 
-    // Detect intersections where roads cross (Requirement 2.2)
-    this.detectIntersections(segments, intersections);
+      // Generate grid-based roads
+      // Main roads run along chunk boundaries for seamless connection (Requirement 2.4)
+      this.generateGridRoads(chunk, context, segments);
 
-    // Create road meshes with lane markings (Requirement 2.3)
-    const roadMeshes = this.createRoadMeshes(chunk, segments, context);
-    const markingMeshes = this.createLaneMarkings(chunk, segments, intersections, context);
+      if (segments.length === 0) {
+        console.warn(`RoadGenerator.generate: No road segments generated for chunk (${chunk.x}, ${chunk.z})`);
+        return [];
+      }
 
-    // Store road data in chunk
-    const road: Road = {
-      id: this.createId('road', chunk.x, chunk.z, 0),
-      segments,
-      intersections,
-      mesh: roadMeshes,
-      imposter: this.createPhysicsImposter(roadMeshes, context)
-    };
+      // Detect intersections where roads cross (Requirement 2.2)
+      this.detectIntersections(segments, intersections);
 
-    chunk.roads.push(road);
-    chunk.meshes.push(roadMeshes, ...markingMeshes);
-    chunk.imposters.push(road.imposter);
+      // Create road meshes with lane markings (Requirement 2.3)
+      const roadMeshes = this.createRoadMeshes(chunk, segments, context);
+      const markingMeshes = this.createLaneMarkings(chunk, segments, intersections, context);
 
-    // Return generated objects
-    const objects: GeneratedObject[] = [];
-    
-    // Main road object
-    objects.push({
-      type: 'road',
-      position: new BABYLON.Vector3(chunk.worldX + context.chunkSize / 2, 0, chunk.worldZ + context.chunkSize / 2),
-      rotation: 0,
-      scale: new BABYLON.Vector3(context.chunkSize, 1, context.chunkSize),
-      mesh: roadMeshes,
-      imposter: road.imposter,
-      metadata: { road, segments, intersections }
-    });
+      // Store road data in chunk
+      const road: Road = {
+        id: this.createId('road', chunk.x, chunk.z, 0),
+        segments,
+        intersections,
+        mesh: roadMeshes,
+        imposter: this.createPhysicsImposter(roadMeshes, context)
+      };
 
-    return objects;
+      chunk.roads.push(road);
+      chunk.meshes.push(roadMeshes, ...markingMeshes);
+      chunk.imposters.push(road.imposter);
+
+      // Return generated objects
+      const objects: GeneratedObject[] = [];
+      
+      // Main road object
+      objects.push({
+        type: 'road',
+        position: new BABYLON.Vector3(chunk.worldX + context.chunkSize / 2, 0, chunk.worldZ + context.chunkSize / 2),
+        rotation: 0,
+        scale: new BABYLON.Vector3(context.chunkSize, 1, context.chunkSize),
+        mesh: roadMeshes,
+        imposter: road.imposter,
+        metadata: { road, segments, intersections }
+      });
+
+      return objects;
+    } catch (error) {
+      console.error(`RoadGenerator.generate: Failed to generate roads for chunk (${chunk.x}, ${chunk.z}):`, error);
+      throw new Error(`RoadGenerator.generate: Generation failed - ${error}`);
+    }
   }
 
   /**
