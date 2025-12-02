@@ -337,7 +337,7 @@
 - [x] 25. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 26. Update README documentation
+- [x] 26. Update README documentation
   - Update README.md to reflect completed procedural generation features
   - Move procedural generation from "In Development" to "Currently Implemented"
   - Add any new controls or usage instructions

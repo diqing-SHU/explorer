@@ -16,9 +16,7 @@ A web-based 3D first-person exploration game built with Babylon.js and TypeScrip
 - ✅ Basic scene rendering with lighting
 - ✅ Window resize handling
 - ✅ Error handling and loading states
-
-### In Development
-- 🚧 **Procedural World Generation** - Infinite world with dynamic chunk loading
+- ✅ **Procedural World Generation** - Infinite world with dynamic chunk loading
   - Chunk-based terrain generation with seamless boundaries
   - Procedural road networks with intersections and lane markings
   - Varied building placement with realistic urban layouts
@@ -26,6 +24,9 @@ A web-based 3D first-person exploration game built with Babylon.js and TypeScrip
   - Parked vehicles with variety in types and colors
   - Deterministic seed-based generation for consistency
   - Extensible plugin architecture for new object types
+  - Configuration system with presets (urban, suburban, rural)
+  - Performance optimizations (instancing, spatial hashing, prioritization)
+  - Comprehensive error handling and graceful degradation
 
 ## 🎯 Controls
 
@@ -36,6 +37,64 @@ A web-based 3D first-person exploration game built with Babylon.js and TypeScrip
 - **Space** - Jump
 - **Mouse** - Look around (click canvas to enable)
 - **ESC** - Release mouse control
+
+## 🌍 Procedural World Generation
+
+The game features an infinite procedurally generated world that creates content dynamically as you explore:
+
+### Enabling Procedural Generation
+
+**Basic Usage (Default Configuration):**
+```typescript
+const gameManager = new GameManager();
+gameManager.initialize(canvas);
+gameManager.enableProceduralGeneration();
+gameManager.start();
+```
+
+**Using Configuration Presets:**
+```typescript
+import { WorldConfigManager } from './procedural/WorldConfig';
+
+// Choose from: 'urban', 'suburban', 'rural'
+const urbanConfig = WorldConfigManager.createPreset('urban');
+gameManager.enableProceduralGeneration(urbanConfig);
+```
+
+**Custom Configuration:**
+```typescript
+const customConfig = new WorldConfigManager({
+  chunk: {
+    chunkSize: 150,
+    activeRadius: 300,
+    unloadDistance: 450,
+    seed: 42
+  },
+  road: {
+    density: 0.3,
+    mainRoadWidth: 12,
+    sideRoadWidth: 8
+  },
+  building: {
+    density: 0.4,
+    minHeight: 10,
+    maxHeight: 50
+  }
+});
+
+gameManager.enableProceduralGeneration(customConfig);
+```
+
+### Features
+
+- **Deterministic Generation**: Same seed always produces the same world
+- **Infinite Exploration**: World generates dynamically as you move
+- **Seamless Chunks**: No visible boundaries between generated areas
+- **Performance Optimized**: Automatic chunk loading/unloading based on distance
+- **Varied Content**: Buildings, roads, vehicles, and signs with natural variation
+- **Configurable**: Extensive configuration options for world appearance
+
+See `src/procedural-example.ts` for complete usage examples.
 
 ## 📁 Project Structure
 
@@ -59,7 +118,25 @@ A web-based 3D first-person exploration game built with Babylon.js and TypeScrip
 │   ├── PlayerController.test.ts  # PlayerController unit tests
 │   ├── EnvironmentManager.ts     # Environment & building management
 │   ├── EnvironmentManager.test.ts # Environment unit tests
-│   └── environments/             # Environment configurations
+│   ├── procedural-example.ts     # Procedural generation usage examples
+│   ├── environments/             # Environment configurations
+│   └── procedural/               # Procedural generation system
+│       ├── ChunkManager.ts       # Chunk lifecycle management
+│       ├── Generator.ts          # Base generator interface
+│       ├── RoadGenerator.ts      # Road network generation
+│       ├── BuildingGenerator.ts  # Building placement & variation
+│       ├── TrafficGenerator.ts   # Traffic signs & signals
+│       ├── VehicleGenerator.ts   # Vehicle placement
+│       ├── TerrainGenerator.ts   # Terrain height generation
+│       ├── PlacementRuleEngine.ts # Spatial constraint validation
+│       ├── WorldConfig.ts        # Configuration management
+│       ├── SeededRandom.ts       # Deterministic RNG
+│       ├── NoiseGenerator.ts     # Perlin/Simplex noise
+│       ├── SpatialUtils.ts       # Coordinate & spatial utilities
+│       ├── MeshInstanceManager.ts # Mesh instancing optimization
+│       ├── ErrorHandling.ts      # Error handling utilities
+│       ├── default-config.json   # Default world configuration
+│       └── *.test.ts             # Unit & property-based tests
 ├── dist/                         # Build output (generated)
 ├── index.html                    # Main HTML with canvas
 ├── package.json                  # Dependencies and scripts
@@ -146,28 +223,97 @@ npm run test:watch
 ```
 
 ### Test Coverage
-- Unit tests for GameManager (scene initialization, error handling)
+- Unit tests for GameManager (scene initialization, error handling, procedural integration)
 - Unit tests for PlayerController (camera configuration, controls)
-- Property-based tests (coming soon with physics implementation)
+- Unit tests for EnvironmentManager (environment setup, collision)
+- **Procedural Generation Tests**:
+  - Unit tests for all generators (Road, Building, Traffic, Vehicle, Terrain)
+  - Unit tests for ChunkManager (chunk loading/unloading, coordinate conversion)
+  - Unit tests for utilities (SeededRandom, NoiseGenerator, SpatialUtils)
+  - Property-based tests for 36 correctness properties using fast-check
+  - Performance tests for generation time and resource cleanup
+  - Configuration validation tests
 
 ## 🏗️ Architecture
 
 The game follows a modular architecture with clear separation of concerns:
 
 ### Core Systems
-- **GameManager**: Coordinates game initialization, scene management, and render loop
+- **GameManager**: Coordinates game initialization, scene management, render loop, and procedural generation
 - **PlayerController**: Manages first-person camera, movement controls, and physics
 - **EnvironmentManager**: Handles static terrain and building generation
 
-### Procedural Generation (In Development)
+### Procedural Generation System
+The procedural generation system uses a plugin-based architecture for extensibility:
+
+#### Core Components
 - **ChunkManager**: Manages chunk lifecycle (loading/unloading based on player position)
-- **Generator System**: Plugin-based architecture for extensible object generation
-  - **RoadGenerator**: Creates road networks with intersections and markings
-  - **BuildingGenerator**: Places varied buildings with realistic layouts
-  - **TrafficGenerator**: Adds signs, signals, and traffic infrastructure
-  - **VehicleGenerator**: Places vehicles along roads with proper alignment
+  - Tracks loaded chunks in a spatial grid
+  - Prioritizes generation by distance (closest first)
+  - Automatically unloads distant chunks to manage memory
+  - Coordinates generator execution in configured order
+
+- **WorldConfigManager**: Centralized configuration management
+  - Provides presets (urban, suburban, rural)
+  - Validates configuration parameters
+  - Supports custom configurations with sensible defaults
+
+#### Generator System
+Plugin-based architecture allows adding new object types without modifying core systems:
+
+- **Generator Interface**: Common interface for all generators
+  - `generate()`: Creates objects for a chunk
+  - `getPlacementRules()`: Defines spatial constraints
+  - `configure()`: Accepts configuration parameters
+
+- **RoadGenerator**: Creates road networks with intersections and lane markings
+  - Grid-based road layout aligned to chunk boundaries
+  - Seamless connections between adjacent chunks
+  - Varied road widths (main streets vs side streets)
+  - Lane markings (center lines, edge lines, crosswalks)
+
+- **BuildingGenerator**: Places varied buildings with realistic layouts
+  - Poisson disc sampling for natural spacing
+  - Varied dimensions (height, width, depth)
+  - Alignment with road grid
+  - Multiple architectural styles and colors
+
+- **TrafficGenerator**: Adds signs, signals, and traffic infrastructure
+  - Traffic lights and stop signs at intersections
+  - Street signs along roads (speed limits, street names)
+  - Proper orientation facing traffic direction
+  - Mesh instancing for performance
+
+- **VehicleGenerator**: Places vehicles along roads with proper alignment
+  - Roadside parking with realistic spacing
+  - Varied vehicle types (sedan, SUV, truck, van)
+  - Parallel alignment to road direction
+  - Color variation
+
+- **TerrainGenerator**: Creates terrain with smooth height transitions
+  - Noise-based height generation
+  - Bilinear interpolation at chunk boundaries
+  - Seamless terrain continuity
+
+#### Supporting Systems
 - **PlacementRuleEngine**: Enforces spatial constraints and collision avoidance
-- **Noise & Utilities**: Seeded random generation and noise functions for variation
+  - NoRoadOverlapRule: Prevents buildings/vehicles from overlapping roads
+  - NoObjectCollisionRule: Prevents object intersections
+  - MinimumSpacingRule: Ensures spacing between buildings
+  - Extensible rule system for custom constraints
+
+- **Utilities**:
+  - **SeededRandom**: Deterministic random number generation for consistency
+  - **NoiseGenerator**: Perlin/Simplex noise for organic variation
+  - **SpatialUtils**: Coordinate conversion and spatial calculations
+  - **MeshInstanceManager**: Mesh instancing for performance optimization
+  - **ErrorHandling**: Graceful error handling and recovery
+
+#### Integration Points
+- Works seamlessly with existing GameManager, PlayerController, and EnvironmentManager
+- Compatible with Babylon.js physics engine (Cannon.js)
+- Proper scene graph integration for rendering
+- Resource cleanup on chunk unload
 
 Built with:
 - **Babylon.js** for 3D rendering and scene management
@@ -203,6 +349,55 @@ If you encounter build errors after pulling changes:
 rm -rf node_modules package-lock.json
 npm install
 ```
+
+### Procedural Generation Issues
+
+#### Low Frame Rate During Exploration
+If you experience frame drops while moving through the procedurally generated world:
+- Reduce the `activeRadius` in your world configuration (default: 200)
+- Increase the `unloadDistance` to unload chunks more aggressively
+- Lower object densities (buildings, vehicles, signs) in configuration
+- Check performance stats: `chunkManager.getPerformanceStats()`
+
+#### Chunks Not Loading
+If chunks aren't generating as you move:
+- Ensure `enableProceduralGeneration()` was called after `initialize()`
+- Verify the game loop is running (`start()` was called)
+- Check browser console for error messages
+- Confirm player position is being updated correctly
+
+#### Visible Seams Between Chunks
+If you see gaps or discontinuities between chunks:
+- This may indicate a bug in boundary handling
+- Check that adjacent chunks are loaded before moving between them
+- Verify terrain height matching at boundaries
+- Report the issue with your world seed for reproducibility
+
+#### Memory Issues
+If the browser runs out of memory:
+- Reduce `activeRadius` to load fewer chunks simultaneously
+- Decrease `unloadDistance` to unload chunks sooner
+- Lower object densities in configuration
+- Check for memory leaks with browser dev tools
+
+#### Inconsistent World Generation
+If the same seed produces different worlds:
+- Ensure you're using the same configuration parameters
+- Verify no external randomness is being introduced
+- Check that generator execution order is consistent
+- This may indicate a bug in the seeded random number generator
+
+#### Configuration Not Applied
+If configuration changes don't take effect:
+- Configuration only affects newly generated chunks
+- Previously generated chunks retain their original configuration
+- Disable and re-enable procedural generation to reset
+- Or move to unexplored areas to see new configuration
+
+For more detailed troubleshooting, see:
+- `src/procedural/ERROR_HANDLING.md` - Error handling documentation
+- `src/procedural/PERFORMANCE_OPTIMIZATION.md` - Performance tuning guide
+- `src/procedural/CONFIG.md` - Configuration reference
 
 ## 📝 License
 
