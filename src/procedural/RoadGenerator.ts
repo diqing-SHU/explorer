@@ -394,10 +394,19 @@ export class RoadGenerator extends BaseGenerator {
 
     vertexData.applyToMesh(roadMesh);
 
-    // Create material
+    // Create material with texture
     const material = new BABYLON.StandardMaterial(`roadMaterial_${chunk.x}_${chunk.z}`, scene);
-    material.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.3); // Dark gray
-    material.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+    material.diffuseColor = new BABYLON.Color3(0.25, 0.25, 0.25); // Darker gray for asphalt
+    material.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05); // Low specular for matte asphalt
+    material.specularPower = 8; // Low specular power for rough surface
+    
+    // Add slight ambient for better visibility
+    material.ambientColor = new BABYLON.Color3(0.15, 0.15, 0.15);
+    
+    // Add bump/roughness for texture
+    material.bumpTexture = new BABYLON.Texture("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", scene);
+    material.bumpTexture.level = 0.3;
+    
     roadMesh.material = material;
 
     return roadMesh;

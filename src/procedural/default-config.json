@@ -14,32 +14,32 @@
   "generators": {
     "road": {
       "gridSpacing": 50,
-      "mainRoadWidth": 12,
-      "sideRoadWidth": 8,
-      "mainRoadProbability": 0.3,
-      "sideRoadDensity": 2,
-      "centerLineWidth": 0.2,
-      "edgeLineWidth": 0.15,
-      "crosswalkWidth": 3,
-      "dashLength": 2,
+      "mainRoadWidth": 14,
+      "sideRoadWidth": 9,
+      "mainRoadProbability": 0.35,
+      "sideRoadDensity": 1,
+      "centerLineWidth": 0.25,
+      "edgeLineWidth": 0.2,
+      "crosswalkWidth": 3.5,
+      "dashLength": 2.5,
       "dashGap": 2
     },
     "building": {
-      "minHeight": 10,
-      "maxHeight": 50,
-      "minWidth": 8,
-      "maxWidth": 20,
-      "minDepth": 8,
-      "maxDepth": 20,
-      "density": 15,
-      "minSpacing": 5,
-      "roadOffset": 3,
-      "scaleVariation": 0.05,
+      "minHeight": 12,
+      "maxHeight": 60,
+      "minWidth": 10,
+      "maxWidth": 25,
+      "minDepth": 10,
+      "maxDepth": 25,
+      "density": 18,
+      "minSpacing": 6,
+      "roadOffset": 4,
+      "scaleVariation": 0.08,
       "rotationVariation": 0.087,
       "styles": [
         {
           "name": "modern",
-          "colorPalette": ["#CCCCCC", "#AAAAAA", "#888888", "#666666"],
+          "colorPalette": ["#E0E0E0", "#C8C8C8", "#A0A0A0", "#787878"],
           "windowPattern": "grid",
           "roofType": "flat"
         },
@@ -51,7 +51,7 @@
         },
         {
           "name": "industrial",
-          "colorPalette": ["#4A4A4A", "#5A5A5A", "#6A6A6A", "#7A7A7A"],
+          "colorPalette": ["#5A5A5A", "#6A6A6A", "#7A7A7A", "#8A8A8A"],
           "windowPattern": "sparse",
           "roofType": "flat"
         },
@@ -60,45 +60,70 @@
           "colorPalette": ["#F5DEB3", "#DEB887", "#D2B48C", "#BC8F8F"],
           "windowPattern": "regular",
           "roofType": "pitched"
+        },
+        {
+          "name": "glass-tower",
+          "colorPalette": ["#B0C4DE", "#87CEEB", "#6495ED", "#4682B4"],
+          "windowPattern": "grid",
+          "roofType": "flat"
+        },
+        {
+          "name": "brick",
+          "colorPalette": ["#B22222", "#A52A2A", "#8B4513", "#CD5C5C"],
+          "windowPattern": "regular",
+          "roofType": "pitched"
+        },
+        {
+          "name": "concrete",
+          "colorPalette": ["#696969", "#808080", "#A9A9A9", "#C0C0C0"],
+          "windowPattern": "sparse",
+          "roofType": "flat"
+        },
+        {
+          "name": "colorful",
+          "colorPalette": ["#FFD700", "#FF6347", "#32CD32", "#1E90FF"],
+          "windowPattern": "regular",
+          "roofType": "pitched"
         }
       ]
     },
     "traffic": {
-      "intersectionSignProbability": 0.8,
-      "roadSignDensity": 0.3,
-      "signHeight": 3,
-      "signSize": 1,
+      "intersectionSignProbability": 0.9,
+      "roadSignDensity": 0.4,
+      "signHeight": 3.5,
+      "signSize": 1.2,
       "types": [0, 1, 2, 3, 4, 5, 6],
-      "minDistanceFromRoad": 6,
-      "maxDistanceFromRoad": 8,
-      "minSpacing": 10,
-      "scaleVariation": 0.02,
-      "rotationVariation": 0.03
+      "minDistanceFromRoad": 6.5,
+      "maxDistanceFromRoad": 8.5,
+      "minSpacing": 12,
+      "scaleVariation": 0.03,
+      "rotationVariation": 0.04
     },
     "vehicle": {
-      "density": 0.3,
-      "minSpacing": 5,
-      "roadsideOffset": 2.0,
+      "density": 0.4,
+      "minSpacing": 6,
+      "roadsideOffset": 2.5,
       "typeDistribution": {
-        "0": 0.4,
+        "0": 0.35,
         "1": 0.25,
         "2": 0.2,
-        "3": 0.1,
-        "4": 0.05
+        "3": 0.12,
+        "4": 0.08
       },
       "colorPalette": [
         "#FFFFFF", "#000000", "#C0C0C0", "#808080",
         "#FF0000", "#0000FF", "#00FF00", "#FFFF00",
-        "#8B4513", "#4169E1", "#DC143C", "#2F4F4F"
+        "#8B4513", "#4169E1", "#DC143C", "#2F4F4F",
+        "#FF6B6B", "#4ECDC4", "#95E1D3", "#F38181"
       ],
-      "scaleVariation": 0.03,
-      "rotationVariation": 0.05,
+      "scaleVariation": 0.04,
+      "rotationVariation": 0.06,
       "dimensions": {
-        "0": { "width": 1.8, "height": 1.4, "length": 4.2 },
-        "1": { "width": 2.0, "height": 1.7, "length": 4.8 },
-        "2": { "width": 1.6, "height": 1.3, "length": 3.2 },
-        "3": { "width": 2.4, "height": 2.3, "length": 5.5 },
-        "4": { "width": 2.0, "height": 2.0, "length": 5.0 }
+        "0": { "width": 1.8, "height": 1.5, "length": 4.5 },
+        "1": { "width": 2.0, "height": 1.8, "length": 5.0 },
+        "2": { "width": 1.6, "height": 1.4, "length": 3.5 },
+        "3": { "width": 2.4, "height": 2.6, "length": 6.2 },
+        "4": { "width": 2.0, "height": 2.2, "length": 5.5 }
       }
     }
   }

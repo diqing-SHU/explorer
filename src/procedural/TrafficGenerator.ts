@@ -503,13 +503,15 @@ export class TrafficGenerator extends BaseGenerator {
     masterPole.position.y = height / 2;
     masterPole.isVisible = false; // Master mesh is not visible
     
-    // Pole material (gray metal)
+    // Pole material (gray metal with metallic look)
     const poleMaterial = new BABYLON.StandardMaterial(
       `masterPoleMaterial_${type}`,
       scene
     );
-    poleMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
-    poleMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+    poleMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+    poleMaterial.specularColor = new BABYLON.Color3(0.6, 0.6, 0.6); // Metallic specular
+    poleMaterial.specularPower = 32;
+    poleMaterial.ambientColor = new BABYLON.Color3(0.2, 0.2, 0.2);
     masterPole.material = poleMaterial;
     
     // Create master sign face based on type
@@ -585,8 +587,10 @@ export class TrafficGenerator extends BaseGenerator {
           `masterSignMaterial_${type}`,
           scene
         );
-        material.diffuseColor = new BABYLON.Color3(0.8, 0.1, 0.1); // Red
-        material.emissiveColor = new BABYLON.Color3(0.2, 0, 0);
+        material.diffuseColor = new BABYLON.Color3(0.9, 0.1, 0.1); // Bright Red
+        material.emissiveColor = new BABYLON.Color3(0.3, 0, 0);
+        material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+        material.specularPower = 16;
         break;
         
       case SignType.TrafficLight:
@@ -605,7 +609,9 @@ export class TrafficGenerator extends BaseGenerator {
           scene
         );
         material.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1); // Black
-        material.emissiveColor = new BABYLON.Color3(0.2, 0.2, 0); // Yellow glow
+        material.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0); // Brighter yellow glow
+        material.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+        material.specularPower = 8;
         break;
         
       case SignType.SpeedLimit:
@@ -623,8 +629,10 @@ export class TrafficGenerator extends BaseGenerator {
           `masterSignMaterial_${type}`,
           scene
         );
-        material.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.9); // White
-        material.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+        material.diffuseColor = new BABYLON.Color3(1.0, 1.0, 1.0); // Pure White
+        material.emissiveColor = new BABYLON.Color3(0.15, 0.15, 0.15);
+        material.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+        material.specularPower = 32;
         break;
         
       case SignType.Yield:
@@ -643,8 +651,10 @@ export class TrafficGenerator extends BaseGenerator {
           `masterSignMaterial_${type}`,
           scene
         );
-        material.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.9); // White
-        material.emissiveColor = new BABYLON.Color3(0.2, 0, 0); // Red glow
+        material.diffuseColor = new BABYLON.Color3(1.0, 1.0, 1.0); // Pure White
+        material.emissiveColor = new BABYLON.Color3(0.3, 0, 0); // Brighter red glow
+        material.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+        material.specularPower = 32;
         break;
         
       case SignType.StreetName:
@@ -667,14 +677,20 @@ export class TrafficGenerator extends BaseGenerator {
         );
         
         if (type === SignType.StreetName) {
-          material.diffuseColor = new BABYLON.Color3(0.1, 0.5, 0.1); // Green
-          material.emissiveColor = new BABYLON.Color3(0, 0.1, 0);
+          material.diffuseColor = new BABYLON.Color3(0.1, 0.6, 0.1); // Brighter Green
+          material.emissiveColor = new BABYLON.Color3(0, 0.15, 0);
+          material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+          material.specularPower = 16;
         } else if (type === SignType.Directional) {
-          material.diffuseColor = new BABYLON.Color3(0.1, 0.3, 0.6); // Blue
-          material.emissiveColor = new BABYLON.Color3(0, 0, 0.1);
+          material.diffuseColor = new BABYLON.Color3(0.1, 0.4, 0.8); // Brighter Blue
+          material.emissiveColor = new BABYLON.Color3(0, 0, 0.15);
+          material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+          material.specularPower = 16;
         } else {
-          material.diffuseColor = new BABYLON.Color3(0.7, 0.1, 0.1); // Red
-          material.emissiveColor = new BABYLON.Color3(0.1, 0, 0);
+          material.diffuseColor = new BABYLON.Color3(0.8, 0.1, 0.1); // Brighter Red
+          material.emissiveColor = new BABYLON.Color3(0.15, 0, 0);
+          material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+          material.specularPower = 16;
         }
         break;
     }

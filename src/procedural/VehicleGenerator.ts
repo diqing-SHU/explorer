@@ -110,12 +110,13 @@ export class VehicleGenerator extends BaseGenerator {
     this.vehicleTemplates.clear();
     
     // Define default colors for each vehicle type (Requirement 4.5)
+    // Using more vibrant and varied colors for better visual appeal
     const typeColors: { [key in VehicleType]: string } = {
       [VehicleType.Sedan]: '#C0C0C0',      // Silver
-      [VehicleType.SUV]: '#2F4F4F',        // Dark Slate Gray
-      [VehicleType.Compact]: '#4169E1',    // Royal Blue
-      [VehicleType.Truck]: '#8B4513',      // Brown
-      [VehicleType.Van]: '#FFFFFF'         // White
+      [VehicleType.SUV]: '#1C1C1C',        // Dark Gray/Black
+      [VehicleType.Compact]: '#FF6B6B',    // Coral Red
+      [VehicleType.Truck]: '#4A4A4A',      // Charcoal
+      [VehicleType.Van]: '#F0F0F0'         // Off-White
     };
     
     // Create template meshes for each vehicle type
@@ -149,8 +150,11 @@ export class VehicleGenerator extends BaseGenerator {
       
       const vehicleColor = BABYLON.Color3.FromHexString(typeColors[vehicleType]);
       material.diffuseColor = vehicleColor;
-      material.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
-      material.specularPower = 32;
+      material.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5); // Shinier for car paint
+      material.specularPower = 64; // Higher for glossy car paint effect
+      
+      // Add ambient color for better visibility
+      material.ambientColor = vehicleColor.scale(0.2);
       
       template.material = material;
       

@@ -318,7 +318,7 @@
 - [x] 22. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 23. Polish and visual improvements
+- [x] 23. Polish and visual improvements
   - Add textures for roads, buildings, vehicles
   - Improve building variety with more styles
   - Add more sign types and details

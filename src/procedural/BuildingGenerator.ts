@@ -70,7 +70,7 @@ export class BuildingGenerator extends BaseGenerator {
     return [
       {
         name: 'modern',
-        colorPalette: ['#CCCCCC', '#AAAAAA', '#888888', '#666666'],
+        colorPalette: ['#E0E0E0', '#C8C8C8', '#A0A0A0', '#787878'],
         windowPattern: 'grid',
         roofType: 'flat'
       },
@@ -82,13 +82,37 @@ export class BuildingGenerator extends BaseGenerator {
       },
       {
         name: 'industrial',
-        colorPalette: ['#4A4A4A', '#5A5A5A', '#6A6A6A', '#7A7A7A'],
+        colorPalette: ['#5A5A5A', '#6A6A6A', '#7A7A7A', '#8A8A8A'],
         windowPattern: 'sparse',
         roofType: 'flat'
       },
       {
         name: 'residential',
         colorPalette: ['#F5DEB3', '#DEB887', '#D2B48C', '#BC8F8F'],
+        windowPattern: 'regular',
+        roofType: 'pitched'
+      },
+      {
+        name: 'glass-tower',
+        colorPalette: ['#B0C4DE', '#87CEEB', '#6495ED', '#4682B4'],
+        windowPattern: 'grid',
+        roofType: 'flat'
+      },
+      {
+        name: 'brick',
+        colorPalette: ['#B22222', '#A52A2A', '#8B4513', '#CD5C5C'],
+        windowPattern: 'regular',
+        roofType: 'pitched'
+      },
+      {
+        name: 'concrete',
+        colorPalette: ['#696969', '#808080', '#A9A9A9', '#C0C0C0'],
+        windowPattern: 'sparse',
+        roofType: 'flat'
+      },
+      {
+        name: 'colorful',
+        colorPalette: ['#FFD700', '#FF6347', '#32CD32', '#1E90FF'],
         windowPattern: 'regular',
         roofType: 'pitched'
       }
@@ -449,11 +473,25 @@ export class BuildingGenerator extends BaseGenerator {
     const color = BABYLON.Color3.FromHexString(colorHex);
     
     material.diffuseColor = color;
-    material.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+    material.specularColor = new BABYLON.Color3(0.15, 0.15, 0.15);
+    material.specularPower = 16;
+    
+    // Add ambient color for better visibility
+    material.ambientColor = color.scale(0.3);
     
     // Add window pattern using emissive color (Requirement 9.4)
     // Different patterns based on style
     this.applyWindowPattern(material, style, dimensions);
+    
+    // Add subtle texture variation based on style
+    if (style.name === 'glass-tower') {
+      material.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+      material.specularPower = 64;
+      material.alpha = 0.95; // Slightly transparent for glass effect
+    } else if (style.name === 'brick' || style.name === 'concrete') {
+      material.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+      material.specularPower = 4; // Rough surface
+    }
     
     mesh.material = material;
     
@@ -478,25 +516,26 @@ export class BuildingGenerator extends BaseGenerator {
   ): void {
     // Use emissive color to simulate windows
     // Different patterns create different visual effects
+    // Brighter emissive colors for more visible windows
     switch (style.windowPattern) {
       case 'grid':
         // Dense grid pattern - modern office building
-        material.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.05);
+        material.emissiveColor = new BABYLON.Color3(0.15, 0.15, 0.08);
         break;
       case 'rows':
         // Horizontal rows - classic building
-        material.emissiveColor = new BABYLON.Color3(0.08, 0.08, 0.03);
+        material.emissiveColor = new BABYLON.Color3(0.12, 0.12, 0.06);
         break;
       case 'sparse':
         // Few windows - industrial building
-        material.emissiveColor = new BABYLON.Color3(0.03, 0.03, 0.01);
+        material.emissiveColor = new BABYLON.Color3(0.05, 0.05, 0.02);
         break;
       case 'regular':
         // Regular pattern - residential building
-        material.emissiveColor = new BABYLON.Color3(0.06, 0.06, 0.02);
+        material.emissiveColor = new BABYLON.Color3(0.10, 0.10, 0.05);
         break;
       default:
-        material.emissiveColor = new BABYLON.Color3(0.05, 0.05, 0.02);
+        material.emissiveColor = new BABYLON.Color3(0.08, 0.08, 0.04);
     }
   }
 
