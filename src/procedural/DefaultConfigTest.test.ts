@@ -70,10 +70,10 @@ describe('Default Configuration Tests', () => {
       
       // Verify road parameters
       expect(roadConfig.gridSpacing).toBe(50);
-      expect(roadConfig.mainRoadWidth).toBe(12);
-      expect(roadConfig.sideRoadWidth).toBe(8);
-      expect(roadConfig.mainRoadProbability).toBe(0.3);
-      expect(roadConfig.sideRoadDensity).toBe(2);
+      expect(roadConfig.mainRoadWidth).toBe(14);
+      expect(roadConfig.sideRoadWidth).toBe(9);
+      expect(roadConfig.mainRoadProbability).toBe(0.35);
+      expect(roadConfig.sideRoadDensity).toBe(1);
     });
     
     it('should have valid building configuration', () => {
@@ -84,11 +84,11 @@ describe('Default Configuration Tests', () => {
       const buildingConfig = configManager.getBuildingConfig();
       
       // Verify building parameters
-      expect(buildingConfig.minHeight).toBe(10);
-      expect(buildingConfig.maxHeight).toBe(50);
-      expect(buildingConfig.minWidth).toBe(8);
-      expect(buildingConfig.maxWidth).toBe(20);
-      expect(buildingConfig.density).toBe(15);
+      expect(buildingConfig.minHeight).toBe(12);
+      expect(buildingConfig.maxHeight).toBe(60);
+      expect(buildingConfig.minWidth).toBe(10);
+      expect(buildingConfig.maxWidth).toBe(25);
+      expect(buildingConfig.density).toBe(18);
       expect(buildingConfig.styles.length).toBeGreaterThan(0);
     });
     
@@ -100,9 +100,9 @@ describe('Default Configuration Tests', () => {
       const trafficConfig = configManager.getTrafficConfig();
       
       // Verify traffic parameters
-      expect(trafficConfig.intersectionSignProbability).toBe(0.8);
-      expect(trafficConfig.roadSignDensity).toBe(0.3);
-      expect(trafficConfig.signHeight).toBe(3);
+      expect(trafficConfig.intersectionSignProbability).toBe(0.9);
+      expect(trafficConfig.roadSignDensity).toBe(0.4);
+      expect(trafficConfig.signHeight).toBe(3.5);
       expect(trafficConfig.types.length).toBeGreaterThan(0);
     });
     
@@ -114,9 +114,9 @@ describe('Default Configuration Tests', () => {
       const vehicleConfig = configManager.getVehicleConfig();
       
       // Verify vehicle parameters
-      expect(vehicleConfig.density).toBe(0.3);
-      expect(vehicleConfig.minSpacing).toBe(5);
-      expect(vehicleConfig.roadsideOffset).toBe(2.0);
+      expect(vehicleConfig.density).toBe(0.4);
+      expect(vehicleConfig.minSpacing).toBe(6);
+      expect(vehicleConfig.roadsideOffset).toBe(2.5);
       expect(vehicleConfig.colorPalette.length).toBeGreaterThan(0);
     });
   });

@@ -1052,18 +1052,19 @@ describe('BuildingGenerator', () => {
             }
             
             // Property 1: Scale variation should be within bounds
-            // Buildings have base dimensions that are then scaled
-            // We need to check that the final dimensions respect the variation bounds
+            // Buildings have base dimensions from noise (within [minDim, maxDim])
+            // Then scale variation is applied: finalDim = baseDim * (1.0 ± scaleVariation)
+            // So the final range is: [minDim * (1 - scaleVar), maxDim * (1 + scaleVar)]
             let allScalesWithinBounds = true;
             
             for (const building of chunk.buildings) {
-              // Calculate what the base dimensions would be (before scale variation)
-              // The dimensions are: base * scaleMultiplier where scaleMultiplier = 1.0 ± scaleVariation
               const minScaleMultiplier = 1.0 - testData.scaleVariation;
               const maxScaleMultiplier = 1.0 + testData.scaleVariation;
               
-              // The base dimensions come from noise-based variation within min/max bounds
-              // So the final dimensions should be: [minDim, maxDim] * [minScale, maxScale]
+              // The base dimensions come from noise: minDim + noise * (maxDim - minDim)
+              // This gives us a range of [minDim, maxDim]
+              // After applying scale variation, the range becomes:
+              // [minDim * minScaleMultiplier, maxDim * maxScaleMultiplier]
               const minPossibleHeight = testData.minHeight * minScaleMultiplier;
               const maxPossibleHeight = testData.maxHeight * maxScaleMultiplier;
               const minPossibleWidth = testData.minWidth * minScaleMultiplier;
