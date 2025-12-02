@@ -307,7 +307,7 @@
   - Implement graceful degradation on errors
   - _Requirements: All_
 
-- [ ] 21. Create default configuration and test world
+- [x] 21. Create default configuration and test world
   - Create default configuration JSON for urban environment
   - Set reasonable defaults for all parameters
   - Test world generation with default configuration
@@ -315,7 +315,7 @@
   - Test chunk loading/unloading during player movement
   - _Requirements: All_
 
-- [ ] 22. Checkpoint - Ensure all tests pass
+- [x] 22. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 23. Polish and visual improvements

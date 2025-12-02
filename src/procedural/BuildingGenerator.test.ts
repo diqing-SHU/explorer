@@ -980,8 +980,8 @@ describe('BuildingGenerator', () => {
           fc.record({
             seed: fc.integer({ min: 1, max: 1000000 }),
             chunkSize: fc.constant(100),
-            scaleVariation: fc.float({ min: Math.fround(0.01), max: Math.fround(0.2) }),      // 1% to 20% variation
-            rotationVariation: fc.float({ min: Math.fround(0.01), max: Math.fround(0.5) }),   // ~0.6° to ~28.6° variation
+            scaleVariation: fc.float({ min: Math.fround(0.01), max: Math.fround(0.2), noNaN: true }),      // 1% to 20% variation
+            rotationVariation: fc.float({ min: Math.fround(0.01), max: Math.fround(0.5), noNaN: true }),   // ~0.6° to ~28.6° variation
             minHeight: fc.constant(10),
             maxHeight: fc.constant(50),
             minWidth: fc.constant(8),

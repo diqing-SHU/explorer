@@ -5,18 +5,16 @@ import { GameManager } from './GameManager';
 describe('GameManager Integration with Procedural Generation', () => {
   let gameManager: GameManager;
   let canvas: HTMLCanvasElement;
+  let testEngine: BABYLON.NullEngine;
 
   beforeEach(() => {
-    // Mock WebGL support check
-    vi.spyOn(GameManager.prototype as any, 'isWebGLSupported').mockReturnValue(true);
-
+    // Create test engine
+    testEngine = new BABYLON.NullEngine();
+    
     // Create a mock canvas
     canvas = document.createElement('canvas');
     canvas.id = 'renderCanvas';
     document.body.appendChild(canvas);
-
-    // Mock getContext to return a fake WebGL context
-    vi.spyOn(canvas, 'getContext').mockReturnValue({} as any);
 
     // Create loading and error elements
     const loading = document.createElement('div');
@@ -41,17 +39,20 @@ describe('GameManager Integration with Procedural Generation', () => {
     if (gameManager) {
       gameManager.dispose();
     }
+    if (testEngine) {
+      testEngine.dispose();
+    }
     document.body.innerHTML = '';
     vi.restoreAllMocks();
   });
 
   describe('ChunkManager Integration', () => {
-    it('should initialize ChunkManager when procedural generation is enabled', () => {
+    it('should initialize ChunkManager when procedural generation is enabled', async () => {
       // Initialize game
-      gameManager.initialize(canvas);
+      gameManager.initialize(canvas, testEngine);
 
       // Enable procedural generation
-      gameManager.enableProceduralGeneration();
+      await gameManager.enableProceduralGeneration();
 
       // Verify ChunkManager is initialized
       const chunkManager = gameManager.getChunkManager();
@@ -60,14 +61,14 @@ describe('GameManager Integration with Procedural Generation', () => {
     });
 
     it('should throw error when accessing ChunkManager before initialization', () => {
-      gameManager.initialize(canvas);
+      gameManager.initialize(canvas, testEngine);
 
       expect(() => gameManager.getChunkManager()).toThrow('ChunkManager not initialized');
     });
 
-    it('should dispose ChunkManager when procedural generation is disabled', () => {
-      gameManager.initialize(canvas);
-      gameManager.enableProceduralGeneration();
+    it('should dispose ChunkManager when procedural generation is disabled', async () => {
+      gameManager.initialize(canvas, testEngine);
+      await gameManager.enableProceduralGeneration();
 
       const chunkManager = gameManager.getChunkManager();
       const disposeSpy = vi.spyOn(chunkManager, 'dispose');
@@ -79,11 +80,8 @@ describe('GameManager Integration with Procedural Generation', () => {
     });
 
     it('should update ChunkManager in game loop when enabled', async () => {
-      gameManager.initialize(canvas);
-      gameManager.enableProceduralGeneration();
-
-      // Wait for generators to be loaded
-      await new Promise(resolve => setTimeout(resolve, 100));
+      gameManager.initialize(canvas, testEngine);
+      await gameManager.enableProceduralGeneration();
 
       const chunkManager = gameManager.getChunkManager();
       const updateSpy = vi.spyOn(chunkManager, 'update');
@@ -99,9 +97,9 @@ describe('GameManager Integration with Procedural Generation', () => {
       gameManager.stop();
     });
 
-    it('should not update ChunkManager when procedural generation is disabled', () => {
-      gameManager.initialize(canvas);
-      gameManager.enableProceduralGeneration();
+    it('should not update ChunkManager when procedural generation is disabled', async () => {
+      gameManager.initialize(canvas, testEngine);
+      await gameManager.enableProceduralGeneration();
       const chunkManager = gameManager.getChunkManager();
       const updateSpy = vi.spyOn(chunkManager, 'update');
 
@@ -120,11 +118,8 @@ describe('GameManager Integration with Procedural Generation', () => {
 
   describe('PlayerController Integration', () => {
     it('should pass player position to ChunkManager update', async () => {
-      gameManager.initialize(canvas);
-      gameManager.enableProceduralGeneration();
-
-      // Wait for generators to be loaded
-      await new Promise(resolve => setTimeout(resolve, 100));
+      gameManager.initialize(canvas, testEngine);
+      await gameManager.enableProceduralGeneration();
 
       const chunkManager = gameManager.getChunkManager();
       const playerController = gameManager.getPlayerController();
@@ -152,8 +147,8 @@ describe('GameManager Integration with Procedural Generation', () => {
   });
 
   describe('EnvironmentManager Compatibility', () => {
-    it('should work alongside EnvironmentManager without conflicts', () => {
-      gameManager.initialize(canvas);
+    it('should work alongside EnvironmentManager without conflicts', async () => {
+      gameManager.initialize(canvas, testEngine);
 
       // Load static environment
       const envConfig = {
@@ -177,7 +172,7 @@ describe('GameManager Integration with Procedural Generation', () => {
       gameManager.loadEnvironment(envConfig);
 
       // Enable procedural generation
-      gameManager.enableProceduralGeneration();
+      await gameManager.enableProceduralGeneration();
 
       // Verify both managers are initialized
       const environmentManager = gameManager.getEnvironmentManager();
@@ -192,7 +187,7 @@ describe('GameManager Integration with Procedural Generation', () => {
     });
 
     it('should dispose both managers correctly', async () => {
-      gameManager.initialize(canvas);
+      gameManager.initialize(canvas, testEngine);
 
       const envConfig = {
         terrain: { width: 100, depth: 100 },
@@ -220,7 +215,7 @@ describe('GameManager Integration with Procedural Generation', () => {
 
   describe('Physics Compatibility', () => {
     it('should maintain physics engine compatibility', async () => {
-      gameManager.initialize(canvas);
+      gameManager.initialize(canvas, testEngine);
       await gameManager.enableProceduralGeneration();
 
       const scene = gameManager.getScene();
@@ -237,7 +232,7 @@ describe('GameManager Integration with Procedural Generation', () => {
 
   describe('Scene Graph Integration', () => {
     it('should add generated objects to scene graph', async () => {
-      gameManager.initialize(canvas);
+      gameManager.initialize(canvas, testEngine);
       await gameManager.enableProceduralGeneration();
 
       const scene = gameManager.getScene();
@@ -258,7 +253,7 @@ describe('GameManager Integration with Procedural Generation', () => {
 
   describe('WorldConfigManager Integration', () => {
     it('should use default config when none provided', async () => {
-      gameManager.initialize(canvas);
+      gameManager.initialize(canvas, testEngine);
       await gameManager.enableProceduralGeneration();
 
       const worldConfigManager = gameManager.getWorldConfigManager();
@@ -270,7 +265,7 @@ describe('GameManager Integration with Procedural Generation', () => {
     });
 
     it('should use custom config when provided', async () => {
-      gameManager.initialize(canvas);
+      gameManager.initialize(canvas, testEngine);
 
       // Import WorldConfigManager
       const { WorldConfigManager } = await import('./procedural');

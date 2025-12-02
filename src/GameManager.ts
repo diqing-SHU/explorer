@@ -23,19 +23,20 @@ export class GameManager {
    * Creates Babylon.js engine and scene with basic lighting
    * Validates: Requirements 7.1, 7.2, 7.3, 7.4
    */
-  public initialize(canvas: HTMLCanvasElement): void {
+  public initialize(canvas: HTMLCanvasElement, testEngine?: BABYLON.Engine): void {
     try {
       // Show loading indicator
       this.showLoading();
 
-      // Check for WebGL support
-      if (!this.isWebGLSupported()) {
+      // Check for WebGL support (skip if test engine provided)
+      if (!testEngine && !this.isWebGLSupported()) {
         throw new Error('WebGL is not supported in this browser. Please update your browser or try a different one.');
       }
 
       // Create Babylon.js engine with optimized settings
       // Validates: Requirements 6.1, 6.2
-      this.engine = new BABYLON.Engine(canvas, true, {
+      // Use test engine if provided (for testing), otherwise create real engine
+      this.engine = testEngine || new BABYLON.Engine(canvas, true, {
         preserveDrawingBuffer: true,
         stencil: true,
         antialias: true, // Enable antialiasing for better visual quality
